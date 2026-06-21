@@ -55,43 +55,51 @@ export function PersonaLogo() {
   // - PERSONA must move into the EXACT CENTER SLOT where the search bar lives
   // - Responsive positioning based on screen size
 
-  // Calculate responsive header center position
-  let headerCenterY = 11; // Default for desktop
+  // Calculate responsive header position
+  // We want the new center of the logo to be exactly in the middle of the header.
+  // The header is roughly 64px tall, so its center is at y=32.
+  // The initial motion.div has top="50vh - 80px", so its center is initially at "50vh".
+  // Therefore, the required translation is: 32 - 50vh.
+  // The code below calculates `headerY = -(startingY - headerCenterY)`.
+  // To make `new_center = 32`, we need `80 + headerCenterY = 32` => `headerCenterY = -48`.
+  let headerCenterY = -48; // Default for desktop
 
-  // Adjust for mobile/tablet
+  // Adjust for mobile/tablet (header might be slightly smaller/larger)
   if (windowWidth < 640) {
-    // Mobile - smaller header
-    headerCenterY = 8;
+    headerCenterY = -52;
   } else if (windowWidth < 768) {
-    // Tablet
-    headerCenterY = 10;
+    headerCenterY = -48;
+  } else if (windowWidth < 1024) {
+    headerCenterY = -48;
   }
 
-  // Scale PERSONA responsively
-  let headerScale = 0.32; // Default for desktop
+  // Scale PERSONA responsively for header (needs to fit in search bar area)
+  let headerScale = 0.28; // Default for desktop (slightly larger to be more visible)
 
   if (windowWidth < 640) {
     // Mobile - smaller scale
-    headerScale = 0.22;
+    headerScale = 0.2;
   } else if (windowWidth < 768) {
     // Tablet
-    headerScale = 0.28;
+    headerScale = 0.24;
   } else if (windowWidth < 1024) {
     // Small desktop
-    headerScale = 0.3;
+    headerScale = 0.26;
   }
 
-  // Calculate Y translation: move from 50vh to headerCenterY
-  // Translation = -(starting position - target position)
-  const headerY = -(window.innerHeight * 0.5 - headerCenterY);
+  // Calculate Y translation: move from center viewport to header center
+  // Starting position: calc(50% - 80px) from top = window.innerHeight * 0.5 - 80
+  // Target position: headerCenterY pixels from top
+  const startingY = window.innerHeight * 0.5 - 80;
+  const headerY = -(startingY - headerCenterY);
 
-  // Horizontal: PERSONA stays centered (search bar is also centered)
+  // Horizontal: PERSONA stays centered in the header
   // Element is already at left-1/2 -translate-x-1/2, so no X translation needed
   const headerX = 0;
 
   return (
     <motion.div
-      className="fixed left-1/2 top-[calc(50%-80px)] -translate-x-1/2 z-30 pointer-events-none"
+      className="fixed left-1/2 top-[calc(50%-80px)] -translate-x-1/2 z-40 pointer-events-none"
       animate={{
         scale: isInHeader ? headerScale : heroScale,
         y: isInHeader ? headerY : heroY,
@@ -101,13 +109,18 @@ export function PersonaLogo() {
         duration: 0.8,
         ease: [0.45, 0, 0.55, 1], // ease-in-out
       }}
+      style={{
+        zIndex: isInHeader ? 51 : 30, // Higher z-index when in header (above header's z-50)
+        overflow: isInHeader ? 'visible' : 'visible', // Ensure logo is not clipped
+      }}
     >
       <h1
         className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[160px] tracking-tighter leading-none select-none text-black text-center font-[Anton] whitespace-nowrap px-4"
         style={{
           textShadow: isInHeader
-            ? "0 1px 4px rgba(0,0,0,0.02)"
+            ? "0 1px 2px rgba(0,0,0,0.05)"
             : "0 6px 40px rgba(0,0,0,0.12)",
+          opacity: isInHeader ? 0.95 : 1,
         }}
       >
         PERSONA

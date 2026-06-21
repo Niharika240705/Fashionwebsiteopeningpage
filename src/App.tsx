@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HeroSection } from './components/HeroSection';
 import { PersonaLogo } from './components/PersonaLogo';
@@ -13,6 +13,11 @@ import { UfindQuestionnaire } from './components/Ufind/UfindQuestionnaire';
 import { UfindResult } from './components/Ufind/UfindResult';
 import { UfindFeed } from './components/Ufind/UfindFeed';
 import { Footer } from './components/Footer';
+import { LoginModal } from './components/LoginModal';
+import { TrendingProducts } from './components/TrendingProducts';
+import { trackOutfitSave } from './utils/analytics';
+import { useAuth } from './contexts/AuthContext';
+import { testBackendConnection } from './utils/api';
 
 type UfindView = 'closed' | 'modal' | 'questionnaire' | 'result' | 'feed';
 
@@ -24,13 +29,44 @@ interface SavedItem {
   priceRange: 'Luxury' | 'Mid' | 'Affordable';
 }
 
-export default function App() {
+function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSavedOpen, setIsSavedOpen] = useState(false);
   const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [ufindView, setUfindView] = useState<UfindView>('closed');
   const [selectedBodyShape, setSelectedBodyShape] = useState<string>('');
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
+  const { setAuthTokens } = useAuth();
+
+  // Test backend connection on mount
+  useEffect(() => {
+    testBackendConnection().then((connected) => {
+      if (connected) {
+        console.log('✅ Backend connected successfully');
+      } else {
+        console.warn('⚠️ Backend connection failed. Make sure the server is running on port 5001');
+      }
+    });
+  }, []);
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const accessToken = urlParams.get('accessToken');
+    const refreshToken = urlParams.get('refreshToken');
+    const error = urlParams.get('error');
+
+    if (accessToken && refreshToken) {
+      setAuthTokens(accessToken, refreshToken);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error) {
+      console.error('OAuth error:', error);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [setAuthTokens]);
 
   const handleUfindClick = () => {
     setUfindView('modal');
@@ -72,6 +108,8 @@ export default function App() {
       if (prev.some(item => item.id === newItem.id)) {
         return prev;
       }
+      // Track outfit save
+      trackOutfitSave(outfit.id, outfit.designer);
       return [...prev, newItem];
     });
   };
@@ -87,6 +125,7 @@ export default function App() {
         onUfindClick={handleUfindClick}
         onSavedClick={() => setIsSavedOpen(true)}
         onImageSearchClick={() => setIsImageSearchOpen(true)}
+        onLoginClick={() => setIsLoginOpen(true)}
       />
       <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <SavedPanel 
@@ -98,6 +137,10 @@ export default function App() {
       <ImageSearchModal
         isOpen={isImageSearchOpen}
         onClose={() => setIsImageSearchOpen(false)}
+      />
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
       />
       
       {/* Ufind Components */}
@@ -129,6 +172,7 @@ export default function App() {
           <PersonaLogo />
           <HeroSection />
           <MonthlyTrends />
+          <TrendingProducts />
           <InfluencerSuggests />
           <FashionChronicle />
           <Footer />
@@ -136,4 +180,8 @@ export default function App() {
       )}
     </div>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }

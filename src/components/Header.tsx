@@ -6,12 +6,14 @@ export function Header({
   onMenuClick, 
   onUfindClick, 
   onSavedClick,
-  onImageSearchClick
+  onImageSearchClick,
+  onLoginClick
 }: { 
   onMenuClick: () => void; 
   onUfindClick: () => void;
   onSavedClick: () => void;
   onImageSearchClick: () => void;
+  onLoginClick: () => void;
 }) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -57,7 +59,7 @@ export function Header({
           </button>
         </div>
 
-        {/* Center: Search Bar (visible at top, hides on scroll) */}
+        {/* Center: Search Bar (visible at top, hides on scroll) OR PersonaLogo (when scrolled) */}
         <motion.div 
           className="hidden sm:flex items-center gap-2 sm:gap-3 border border-black/20 rounded-full px-4 sm:px-6 py-2 sm:py-3 bg-white"
           style={{
@@ -68,6 +70,7 @@ export function Header({
             opacity: isScrolled ? 0 : 1,
             scale: isScrolled ? 0.85 : 1,
             y: isScrolled ? -8 : 0,
+            pointerEvents: isScrolled ? 'none' : 'auto',
           }}
           transition={{ duration: 0.6, ease: [0.45, 0, 0.55, 1] }}
         >
@@ -155,8 +158,9 @@ export function Header({
             />
           </motion.button>
           
-          {/* Login Caricature Icon */}
+          {/* Login/Account Icon */}
           <motion.button
+            onClick={onLoginClick}
             className="p-1.5 sm:p-2 hover:bg-black/5 rounded-full transition-colors"
             aria-label="Account"
             whileHover={{ scale: 1.05 }}

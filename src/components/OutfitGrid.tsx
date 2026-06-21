@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 import { DesignerModal } from './DesignerModal';
 import { Bookmark } from 'lucide-react';
+import { LazyImage } from './LazyImage';
 
 interface Outfit {
   id: number;
@@ -70,7 +71,7 @@ const outfits: Outfit[] = [
   },
 ];
 
-export function OutfitGrid({ onSaveOutfit }: { onSaveOutfit?: (outfit: Outfit) => void }) {
+export function OutfitGrid({ onSaveOutfit, onRequireAuth }: { onSaveOutfit?: (outfit: Outfit) => void; onRequireAuth?: () => void }) {
   const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null);
   const [savedOutfits, setSavedOutfits] = useState<Set<number>>(new Set());
 
@@ -101,13 +102,22 @@ export function OutfitGrid({ onSaveOutfit }: { onSaveOutfit?: (outfit: Outfit) =
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedOutfit(outfit)}
-                className="cursor-pointer group relative"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedOutfit(outfit);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`View details for ${outfit.designer} ${outfit.description}`}
+                className="cursor-pointer group relative focus:outline-none focus:ring-2 focus:ring-black/20 rounded-2xl"
               >
                 <div className="relative overflow-hidden rounded-2xl shadow-lg aspect-[3/4] bg-neutral-100">
-                  <img
+                  <LazyImage
                     src={outfit.image}
-                    alt={outfit.designer}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    alt={`${outfit.designer} - ${outfit.description}`}
+                    className="w-full h-full transition-transform duration-500 group-hover:scale-110"
                   />
                   
                   {/* Bookmark Button */}
@@ -115,7 +125,8 @@ export function OutfitGrid({ onSaveOutfit }: { onSaveOutfit?: (outfit: Outfit) =
                     onClick={(e) => handleSave(e, outfit)}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all ${
+                    aria-label={isSaved ? `Remove ${outfit.designer} from saved` : `Save ${outfit.designer}`}
+                    className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all focus:outline-none focus:ring-2 focus:ring-white/50 ${
                       isSaved 
                         ? 'bg-black text-white shadow-lg' 
                         : 'bg-white/90 text-black hover:bg-white'
@@ -125,6 +136,7 @@ export function OutfitGrid({ onSaveOutfit }: { onSaveOutfit?: (outfit: Outfit) =
                       size={18} 
                       fill={isSaved ? 'currentColor' : 'none'}
                       strokeWidth={1.5}
+                      aria-hidden="true"
                     />
                   </motion.button>
 
@@ -155,6 +167,7 @@ export function OutfitGrid({ onSaveOutfit }: { onSaveOutfit?: (outfit: Outfit) =
         outfit={selectedOutfit}
         isOpen={!!selectedOutfit}
         onClose={() => setSelectedOutfit(null)}
+        onRequireAuth={onRequireAuth}
       />
     </>
   );
