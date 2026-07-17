@@ -98,6 +98,12 @@ export function PersonaLogo() {
   const headerX = 0;
 
   return (
+    <>
+    {/* Full-viewport scroll block — reserves space so content below starts after intro */}
+    <section
+      aria-hidden
+      className="relative h-screen w-full shrink-0 bg-white"
+    />
     <motion.div
       className="fixed left-1/2 top-[calc(50%-80px)] -translate-x-1/2 z-40 pointer-events-none"
       animate={{
@@ -126,5 +132,6 @@ export function PersonaLogo() {
         PERSONA
       </h1>
     </motion.div>
+    </>
   );
 }
