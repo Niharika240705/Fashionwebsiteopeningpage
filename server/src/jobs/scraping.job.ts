@@ -1,7 +1,6 @@
 import * as cron from 'node-cron';
 import { IngestionOrchestratorService } from '../services/ingestion/ingestion-orchestrator.service';
 import { Offer } from '../models/Offer.model';
-import { Source } from '../models/Source.model';
 
 const ingestionOrchestrator = new IngestionOrchestratorService();
 
@@ -11,17 +10,15 @@ const ingestionOrchestrator = new IngestionOrchestratorService();
 export function setupScrapingJobs() {
   // Sync enabled sources every 8 hours
   cron.schedule('0 */8 * * *', async () => {
-    console.log('🕐 Starting scheduled catalog sync...');
+    console.log('🕐 Starting scheduled partner catalog sync...');
     try {
       await ingestionOrchestrator.ensureSeedSources();
-      const sources = await Source.find({ enabled: true });
-      for (const source of sources) {
-        await ingestionOrchestrator.ingestSource(source.sourceId, {
-          limit: 100,
-          processImages: false,
-        });
-      }
-      console.log('✅ Scheduled catalog sync completed');
+      const defaultSource = process.env.CRON_INGEST_SOURCE || 'demo-affiliate';
+      await ingestionOrchestrator.ingestSource(defaultSource, {
+        limit: 100,
+        processImages: false,
+      });
+      console.log('✅ Scheduled partner catalog sync completed');
     } catch (error) {
       console.error('❌ Scheduled catalog sync failed:', error);
     }

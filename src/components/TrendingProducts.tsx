@@ -2,22 +2,32 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
 import { ProductGrid } from './products/ProductGrid';
+import { VirtualTryOnModal } from './VirtualTryOnModal';
 import { getTrendingProducts } from '../utils/api';
 import { ProductSummary } from '../types/product';
+import { Audience, defaultCategoryForAudience, labelForAudience } from '../utils/taxonomy';
 
 interface TrendingProductsProps {
+  audience?: Audience;
   category?: string;
   limit?: number;
+  onRequireAuth?: () => void;
 }
 
-export function TrendingProducts({ category, limit = 20 }: TrendingProductsProps) {
+export function TrendingProducts({
+  audience = 'women',
+  category,
+  limit = 20,
+  onRequireAuth,
+}: TrendingProductsProps) {
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tryOnProduct, setTryOnProduct] = useState<ProductSummary | null>(null);
 
   const load = () => {
     setLoading(true);
-    getTrendingProducts({ category, audience: 'women', limit })
+    getTrendingProducts({ category, audience, limit })
       .then((data) => {
         setProducts(data.products || []);
         setError(null);
@@ -28,7 +38,11 @@ export function TrendingProducts({ category, limit = 20 }: TrendingProductsProps
 
   useEffect(() => {
     load();
-  }, [category, limit]);
+  }, [category, limit, audience]);
+
+  const shopPath = category
+    ? `/${audience}/${category}`
+    : `/${audience}/${defaultCategoryForAudience(audience)}`;
 
   return (
     <div className="py-12 relative z-0">
@@ -38,19 +52,20 @@ export function TrendingProducts({ category, limit = 20 }: TrendingProductsProps
             <TrendingUp className="w-6 h-6 text-black" />
             <h2 className="text-3xl font-bold text-black">
               {category
-                ? `${category.charAt(0).toUpperCase() + category.slice(1)} Trends`
-                : 'Trending Now'}
+                ? `${labelForAudience(audience)} · ${category.charAt(0).toUpperCase() + category.slice(1)}`
+                : `Trending for ${labelForAudience(audience)}`}
             </h2>
           </div>
           <p className="text-gray-600 text-sm">
-            Partner styles for women. Click through to buy on the retailer site.
+            Partner styles for {labelForAudience(audience).toLowerCase()}. Tap Try On when logged in,
+            or open the retailer link to buy.
           </p>
         </div>
         <Link
-          to={category ? `/women/${category}` : '/women/dresses'}
+          to={shopPath}
           className="text-xs tracking-widest uppercase border border-black px-4 py-2"
         >
-          Shop women
+          Shop {labelForAudience(audience)}
         </Link>
       </div>
 
@@ -65,8 +80,20 @@ export function TrendingProducts({ category, limit = 20 }: TrendingProductsProps
           </button>
         </div>
       ) : (
-        <ProductGrid products={products} loading={loading} emptyMessage="No trending products yet. Seed the demo affiliate feed to preview." />
+        <ProductGrid
+          products={products}
+          loading={loading}
+          onTryOn={setTryOnProduct}
+          onRequireAuth={onRequireAuth}
+          emptyMessage="No trending products yet. Seed the demo affiliate feed to preview."
+        />
       )}
+
+      <VirtualTryOnModal
+        isOpen={!!tryOnProduct}
+        product={tryOnProduct}
+        onClose={() => setTryOnProduct(null)}
+      />
     </div>
   );
 }

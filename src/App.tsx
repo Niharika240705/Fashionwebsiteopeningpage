@@ -11,7 +11,7 @@ import { UfindFeed } from './components/Ufind/UfindFeed';
 import { LoginModal } from './components/LoginModal';
 import { useAuth } from './contexts/AuthContext';
 import { SavedItemsProvider, useSavedItems } from './contexts/SavedItemsContext';
-import { testBackendConnection } from './utils/api';
+import { testBackendConnection, getRedirectUrl } from './utils/api';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { SearchPage } from './pages/SearchPage';
@@ -19,7 +19,7 @@ import { ProductPage } from './pages/ProductPage';
 import { SavedPage } from './pages/SavedPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
-import { getRedirectUrl } from './utils/api';
+import { Audience } from './utils/taxonomy';
 
 type UfindView = 'closed' | 'modal' | 'questionnaire' | 'result' | 'feed';
 
@@ -30,9 +30,12 @@ function AppShell() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [ufindView, setUfindView] = useState<UfindView>('closed');
   const [selectedBodyShape, setSelectedBodyShape] = useState('');
-  const { refreshSession } = useAuth();
+  const [ufindAudience, setUfindAudience] = useState<Audience>('women');
+  const { refreshSession, isAuthenticated } = useAuth();
   const { savedProducts, toggleSave } = useSavedItems();
   const navigate = useNavigate();
+
+  const openLogin = () => setIsLoginOpen(true);
 
   useEffect(() => {
     testBackendConnection().then((connected) => {
@@ -52,19 +55,31 @@ function AppShell() {
       console.error('OAuth error');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+    if (urlParams.get('login') === '1') {
+      setIsLoginOpen(true);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, [refreshSession]);
+
+  const handleUfindClick = () => {
+    if (!isAuthenticated) {
+      openLogin();
+      return;
+    }
+    setUfindView('modal');
+  };
 
   return (
     <div className="min-h-screen bg-white">
       <Header
         onMenuClick={() => setIsMenuOpen(true)}
-        onUfindClick={() => setUfindView('modal')}
+        onUfindClick={handleUfindClick}
         onSavedClick={() => {
           setIsSavedOpen(true);
           navigate('/saved');
         }}
         onImageSearchClick={() => setIsImageSearchOpen(true)}
-        onLoginClick={() => setIsLoginOpen(true)}
+        onLoginClick={openLogin}
         onSearchSubmit={(q) => navigate(`/search?q=${encodeURIComponent(q)}`)}
       />
       <SideMenu
@@ -102,17 +117,25 @@ function AppShell() {
       <UfindModal
         isOpen={ufindView === 'modal'}
         onClose={() => setUfindView('closed')}
-        onShapeSelect={(shape) => {
+        isAuthenticated={isAuthenticated}
+        onRequireAuth={openLogin}
+        onShapeSelect={(shape, audience) => {
           setSelectedBodyShape(shape);
+          setUfindAudience(audience);
           setUfindView('result');
         }}
-        onStartQuestionnaire={() => setUfindView('questionnaire')}
+        onStartQuestionnaire={(audience) => {
+          setUfindAudience(audience);
+          setUfindView('questionnaire');
+        }}
       />
       <UfindQuestionnaire
         isOpen={ufindView === 'questionnaire'}
+        audience={ufindAudience}
         onClose={() => setUfindView('closed')}
-        onComplete={(bodyShape) => {
+        onComplete={(bodyShape, audience) => {
           setSelectedBodyShape(bodyShape);
+          setUfindAudience(audience);
           setUfindView('result');
         }}
       />
@@ -124,6 +147,8 @@ function AppShell() {
       <UfindFeed
         isOpen={ufindView === 'feed'}
         bodyShape={selectedBodyShape}
+        audience={ufindAudience}
+        onRequireAuth={openLogin}
         onClose={() => {
           setUfindView('closed');
           setSelectedBodyShape('');
@@ -133,26 +158,15 @@ function AppShell() {
       {ufindView !== 'feed' && (
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/women/:category" element={<CategoryPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/products/:id" element={<ProductPage />} />
+          <Route path="/:audience/:category" element={<CategoryPage onRequireAuth={openLogin} />} />
+          <Route path="/search" element={<SearchPage onRequireAuth={openLogin} />} />
+          <Route path="/products/:id" element={<ProductPage onRequireAuth={openLogin} />} />
           <Route path="/saved" element={<SavedPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
-          <Route path="/men/*" element={<ComingSoon audience="Men" />} />
-          <Route path="/kids/*" element={<ComingSoon audience="Kids" />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
-    </div>
-  );
-}
-
-function ComingSoon({ audience }: { audience: string }) {
-  return (
-    <div className="max-w-[1600px] mx-auto px-8 py-24 text-center">
-      <h1 className="text-3xl mb-3">{audience}</h1>
-      <p className="text-black/50">Coming soon after the women’s catalog MVP is stable.</p>
     </div>
   );
 }

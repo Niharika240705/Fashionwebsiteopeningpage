@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithApple = async () => {
-    alert('Apple Sign In is being configured. Please use Google or email/password for now.');
+    throw new Error('Apple Sign In is coming soon. Please use Google or email for now.');
   };
 
   const logout = async () => {

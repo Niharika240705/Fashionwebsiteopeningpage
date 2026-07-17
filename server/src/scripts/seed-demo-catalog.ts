@@ -1,25 +1,24 @@
 import 'dotenv/config';
-import mongoose from 'mongoose';
 import { IngestionOrchestratorService } from '../services/ingestion/ingestion-orchestrator.service';
+import { connectMongoDB, disconnectMongoDB } from '../config/database';
 
 async function main() {
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fashion-website';
-  await mongoose.connect(uri);
+  await connectMongoDB();
   const orchestrator = new IngestionOrchestratorService();
   await orchestrator.ensureSeedSources();
   const run = await orchestrator.ingestSource('demo-affiliate', {
-    limit: 20,
+    limit: 100,
     processImages: false,
   });
   console.log('Demo ingest complete:', {
     status: run.status,
     counts: run.counts,
   });
-  await mongoose.disconnect();
+  await disconnectMongoDB();
 }
 
 main().catch(async (error) => {
   console.error(error);
-  await mongoose.disconnect();
+  await disconnectMongoDB();
   process.exit(1);
 });

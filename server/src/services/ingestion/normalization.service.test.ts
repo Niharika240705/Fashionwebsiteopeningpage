@@ -1,17 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { buildFingerprint, canonicalizeUrl, normalizeRawProduct } from './normalization.service';
-import { normalizeCategory, isWomenMvpCategory } from './taxonomy.service';
+import { normalizeCategory, isMvpCategory, isWomenMvpCategory } from './taxonomy.service';
 
 describe('taxonomy', () => {
   it('normalizes category aliases', () => {
     expect(normalizeCategory('Dress')).toBe('dresses');
+    expect(normalizeCategory('gown')).toBe('wedding-gowns');
+    expect(normalizeCategory('bridal')).toBe('wedding-gowns');
     expect(normalizeCategory('saree')).toBe('ethnic-wear');
     expect(normalizeCategory('heels')).toBe('footwear');
+    expect(normalizeCategory('jewellery')).toBe('jewellery');
+    expect(isMvpCategory('women', 'wedding-gowns')).toBe(true);
   });
 
-  it('accepts women MVP categories', () => {
+  it('accepts audience MVP categories', () => {
     expect(isWomenMvpCategory('tops')).toBe(true);
-    expect(isWomenMvpCategory('unknown-thing')).toBe(false);
+    expect(isMvpCategory('men', 'shirts')).toBe(true);
+    expect(isMvpCategory('kids', 'sets')).toBe(true);
+    expect(isMvpCategory('women', 'unknown-thing')).toBe(false);
   });
 });
 

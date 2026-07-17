@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Bookmark, ExternalLink } from 'lucide-react';
+import { Bookmark, ExternalLink, Shirt } from 'lucide-react';
 import { getProduct, getRedirectUrl } from '../utils/api';
 import { ProductSummary } from '../types/product';
 import { useSavedItems } from '../contexts/SavedItemsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../utils/analytics';
+import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
 
-export function ProductPage() {
+interface ProductPageProps {
+  onRequireAuth?: () => void;
+}
+
+export function ProductPage({ onRequireAuth }: ProductPageProps) {
   const { id = '' } = useParams();
   const [product, setProduct] = useState<ProductSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
   const { isSaved, toggleSave } = useSavedItems();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     getProduct(id)
@@ -34,6 +42,11 @@ export function ProductPage() {
     ? product.images
     : ['https://via.placeholder.com/600x800?text=Product+Image+Unavailable'];
 
+  const audience = product.audience || 'women';
+  const tryOnEligible = !['jewellery', 'jewelry', 'bags', 'accessories', 'footwear'].includes(
+    (product.category || '').toLowerCase()
+  );
+
   const handleBuy = () => {
     if (!product.offerId) return;
     trackEvent('affiliate_click', {
@@ -44,9 +57,21 @@ export function ProductPage() {
     window.open(getRedirectUrl(product.offerId, 'product_detail'), '_blank', 'noopener,noreferrer');
   };
 
+  const handleTryOn = () => {
+    if (!isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+    trackEvent('try_on_started', { productId: product.id, category: product.category });
+    setTryOnOpen(true);
+  };
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-14">
-      <Link to={`/women/${product.category}`} className="text-xs tracking-widest uppercase text-black/50">
+      <Link
+        to={`/${audience}/${product.category}`}
+        className="text-xs tracking-widest uppercase text-black/50"
+      >
         ← Back to {product.category}
       </Link>
 
@@ -99,11 +124,21 @@ export function ProductPage() {
           )}
 
           <div className="flex flex-wrap gap-3 pt-2">
+            {tryOnEligible && (
+              <button
+                type="button"
+                onClick={handleTryOn}
+                className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 text-xs tracking-widest uppercase"
+              >
+                <Shirt size={14} />
+                Try on
+              </button>
+            )}
             <button
               type="button"
               onClick={handleBuy}
               disabled={!product.offerId}
-              className="inline-flex items-center gap-2 bg-black text-white px-6 py-3 text-xs tracking-widest uppercase disabled:opacity-40"
+              className="inline-flex items-center gap-2 border border-black px-6 py-3 text-xs tracking-widest uppercase disabled:opacity-40"
             >
               Go to {product.sellerName || 'retailer'}
               <ExternalLink size={14} />
@@ -111,7 +146,7 @@ export function ProductPage() {
             <button
               type="button"
               onClick={() => toggleSave(product)}
-              className="inline-flex items-center gap-2 border border-black px-6 py-3 text-xs tracking-widest uppercase"
+              className="inline-flex items-center gap-2 border border-black/20 px-6 py-3 text-xs tracking-widest uppercase"
             >
               <Bookmark size={14} fill={isSaved(product.id) ? 'currentColor' : 'none'} />
               {isSaved(product.id) ? 'Saved' : 'Save'}
@@ -119,6 +154,12 @@ export function ProductPage() {
           </div>
         </div>
       </div>
+
+      <VirtualTryOnModal
+        isOpen={tryOnOpen}
+        product={product}
+        onClose={() => setTryOnOpen(false)}
+      />
     </div>
   );
 }

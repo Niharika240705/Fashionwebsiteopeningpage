@@ -1,5 +1,4 @@
 import { motion } from 'motion/react';
-import { useState } from 'react';
 import chanelImage from '../assets/9001957e229e27a8068455211b50aa8c01ee7c5c.png';
 
 interface InfluencerBlock {
@@ -117,8 +116,6 @@ const influencerBlocks: InfluencerBlock[] = [
 ];
 
 export function InfluencerSuggests() {
-  const [hoveredId, setHoveredId] = useState<number | null>(null);
-
   const leftColumnBlocks = influencerBlocks.filter(block => block.column === 'left').sort((a, b) => a.order - b.order);
   const rightColumnBlocks = influencerBlocks.filter(block => block.column === 'right').sort((a, b) => a.order - b.order);
 
@@ -174,9 +171,7 @@ export function InfluencerSuggests() {
                     duration: 0.6, 
                     ease: [0.16, 1, 0.3, 1] 
                   }}
-                  onHoverStart={() => setHoveredId(influencer.id)}
-                  onHoverEnd={() => setHoveredId(null)}
-                  className="cursor-pointer group"
+                  className="group"
                 >
                   {/* Image - Auto height, full width, no cropping */}
                   <motion.div 
@@ -219,15 +214,6 @@ export function InfluencerSuggests() {
                         </span>
                       ))}
                     </div>
-
-                    <motion.div
-                      className="inline-flex items-center gap-2 text-[10px] tracking-wider text-black/50 group-hover:text-black transition-colors"
-                      animate={{ x: hoveredId === influencer.id ? 6 : 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <span>View Look</span>
-                      <span>&rarr;</span>
-                    </motion.div>
                   </div>
                 </motion.article>
               ))}
@@ -246,9 +232,7 @@ export function InfluencerSuggests() {
                     duration: 0.6, 
                     ease: [0.16, 1, 0.3, 1] 
                   }}
-                  onHoverStart={() => setHoveredId(influencer.id)}
-                  onHoverEnd={() => setHoveredId(null)}
-                  className="cursor-pointer group"
+                  className="group"
                 >
                   {/* Image - Auto height, full width, no cropping */}
                   <motion.div 
@@ -291,15 +275,6 @@ export function InfluencerSuggests() {
                         </span>
                       ))}
                     </div>
-
-                    <motion.div
-                      className="inline-flex items-center gap-2 text-[10px] tracking-wider text-black/50 group-hover:text-black transition-colors"
-                      animate={{ x: hoveredId === influencer.id ? 6 : 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <span>View Look</span>
-                      <span>&rarr;</span>
-                    </motion.div>
                   </div>
                 </motion.article>
               ))}

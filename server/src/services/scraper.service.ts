@@ -62,7 +62,13 @@ export class BaseScraper {
       this.browser = await chromium.launch({
         headless,
         slowMo,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-http2',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-dev-shm-usage',
+        ],
       });
     }
   }
@@ -181,13 +187,23 @@ export class PlaywrightScraper extends BaseScraper {
       // Set viewport to look more like a real browser
       await page.setViewportSize({ width: 1920, height: 1080 });
 
-      // Navigate to listing page
+      // Navigate to listing page (retry once; disable HTTP/2 issues via launch args)
       console.log(`⏳ Navigating to page...`);
       const navigationStart = Date.now();
-      const response = await page.goto(listingUrl, { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 60000 
-      });
+      let response = null as Awaited<ReturnType<Page['goto']>>;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        try {
+          response = await page.goto(listingUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 60000,
+          });
+          break;
+        } catch (navError: any) {
+          console.warn(`⚠️ Navigation attempt ${attempt} failed: ${navError?.message?.slice(0, 120)}`);
+          if (attempt === 2) throw navError;
+          await page.waitForTimeout(1500);
+        }
+      }
       const navigationTime = Date.now() - navigationStart;
 
       if (!response || !response.ok()) {

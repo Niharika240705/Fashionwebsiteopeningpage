@@ -6,7 +6,11 @@ import { Source } from '../models/Source.model';
 import { TrendDetectionService } from '../services/trend-detection.service';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { IngestionOrchestratorService } from '../services/ingestion/ingestion-orchestrator.service';
-import { getWomenMvpCategories } from '../services/ingestion/taxonomy.service';
+import {
+  getCategoriesForAudience,
+  labelForCategory,
+  normalizeAudience,
+} from '../services/ingestion/taxonomy.service';
 
 const router = express.Router();
 const trendDetectionService = new TrendDetectionService();
@@ -73,24 +77,14 @@ router.get('/trending', async (req: Request, res: Response) => {
  * GET /api/products/categories
  */
 router.get('/categories', async (req: Request, res: Response) => {
-  const audience = (req.query.audience as string) || 'women';
-  if (audience === 'women') {
-    return res.json({
-      success: true,
-      categories: getWomenMvpCategories().map((category) => ({
-        slug: category,
-        label: category
-          .split('-')
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(' '),
-      })),
-    });
-  }
-
-  const categories = await Product.distinct('category', { audience });
+  const audience = normalizeAudience(req.query.audience as string);
   res.json({
     success: true,
-    categories: categories.map((category) => ({ slug: category, label: category })),
+    audience,
+    categories: getCategoriesForAudience(audience).map((category) => ({
+      slug: category,
+      label: labelForCategory(category),
+    })),
   });
 });
 
@@ -264,7 +258,9 @@ async function formatProductResponse(product: IProduct | any) {
       ? product.images.approved
       : product.images?.processed?.length > 0
         ? product.images.processed
-        : [];
+        : product.images?.original?.length > 0
+          ? product.images.original
+          : [];
 
   const offer = await Offer.findOne({
     productId: product._id,

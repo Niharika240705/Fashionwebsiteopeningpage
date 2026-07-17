@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -16,6 +15,7 @@ import adminIngestionRoutes from './routes/admin-ingestion.routes';
 import monitoringRoutes from './routes/monitoring.routes';
 import './config/passport.config';
 import { IngestionOrchestratorService } from './services/ingestion/ingestion-orchestrator.service';
+import { connectMongoDB, isMongoReady } from './config/database';
 
 const DEFAULT_SECRETS = new Set([
   'your-secret-key-change-in-production',
@@ -127,7 +127,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.get('/api/health', (_req, res) => {
-  const mongoReady = mongoose.connection.readyState === 1;
+  const mongoReady = isMongoReady();
   res.status(mongoReady ? 200 : 503).json({
     status: mongoReady ? 'ok' : 'degraded',
     mongo: mongoReady,
@@ -152,21 +152,18 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 });
 
 async function start() {
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fashion-website';
-
   try {
-    await mongoose.connect(mongoUri);
-    console.log('✅ Connected to MongoDB');
+    await connectMongoDB();
 
     try {
       const orchestrator = new IngestionOrchestratorService();
       await orchestrator.ensureSeedSources();
       if (process.env.AUTO_INGEST_DEMO === 'true') {
-        await orchestrator.ingestSource('demo-affiliate', { limit: 20, processImages: false });
+        await orchestrator.ingestSource('demo-affiliate', { limit: 100, processImages: false });
         console.log('✅ Demo affiliate catalog seeded');
       }
     } catch (error) {
-      console.warn('⚠️  Source seed/ingest skipped:', error);
+      console.warn('⚠️  Source seed skipped (run npm run ingest:demo):', error);
     }
 
     app.listen(PORT, () => {
@@ -179,7 +176,7 @@ async function start() {
       }
     });
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }

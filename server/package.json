@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "scrape:myntra": "tsx src/scripts/scrape-myntra-comprehensive.ts",
-    "ingest:demo": "tsx src/scripts/seed-demo-catalog.ts"
+    "ingest:demo": "tsx src/scripts/seed-demo-catalog.ts",
+    "ingest:retailers": "tsx src/scripts/ingest-retailers.ts"
   },
   "dependencies": {
     "express": "^4.18.2",

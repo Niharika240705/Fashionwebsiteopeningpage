@@ -1,18 +1,33 @@
 import type { MouseEvent } from 'react';
-import { Bookmark, ExternalLink } from 'lucide-react';
+import { Bookmark, ExternalLink, Shirt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ProductSummary } from '../../types/product';
 import { getRedirectUrl } from '../../utils/api';
 import { useSavedItems } from '../../contexts/SavedItemsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { trackEvent } from '../../utils/analytics';
 
 interface ProductCardProps {
   product: ProductSummary;
   placement?: string;
+  onTryOn?: (product: ProductSummary) => void;
+  onRequireAuth?: () => void;
 }
 
-export function ProductCard({ product, placement = 'grid' }: ProductCardProps) {
+function isTryOnEligible(product: ProductSummary): boolean {
+  const category = (product.category || '').toLowerCase();
+  const blocked = ['jewellery', 'jewelry', 'bags', 'accessories', 'footwear'];
+  return !blocked.includes(category);
+}
+
+export function ProductCard({
+  product,
+  placement = 'grid',
+  onTryOn,
+  onRequireAuth,
+}: ProductCardProps) {
   const { isSaved, toggleSave } = useSavedItems();
+  const { isAuthenticated } = useAuth();
   const image =
     product.images?.[0] ||
     'https://via.placeholder.com/600x800?text=Product+Image+Unavailable';
@@ -28,6 +43,17 @@ export function ProductCard({ product, placement = 'grid' }: ProductCardProps) {
       retailer: product.retailerId,
     });
     window.open(getRedirectUrl(product.offerId, placement), '_blank', 'noopener,noreferrer');
+  };
+
+  const handleTryOn = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+    trackEvent('try_on_started', { productId: product.id, category: product.category });
+    onTryOn?.(product);
   };
 
   return (
@@ -61,9 +87,7 @@ export function ProductCard({ product, placement = 'grid' }: ProductCardProps) {
           <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
         </Link>
         <div className="flex items-baseline gap-2">
-          <span className="text-base font-semibold">
-            ₹{product.price.toLocaleString()}
-          </span>
+          <span className="text-base font-semibold">₹{product.price.toLocaleString()}</span>
           {product.originalPrice && product.originalPrice > product.price && (
             <span className="text-xs text-black/40 line-through">
               ₹{product.originalPrice.toLocaleString()}
@@ -71,15 +95,27 @@ export function ProductCard({ product, placement = 'grid' }: ProductCardProps) {
           )}
         </div>
         <p className="text-xs text-black/50">{product.sellerName || product.attributionText}</p>
-        <button
-          type="button"
-          onClick={handleBuy}
-          disabled={!product.offerId}
-          className="w-full mt-2 inline-flex items-center justify-center gap-2 border border-black px-3 py-2 text-xs tracking-widest uppercase hover:bg-black hover:text-white disabled:opacity-40"
-        >
-          Go to retailer
-          <ExternalLink size={12} />
-        </button>
+        <div className="space-y-2 pt-1">
+          {isTryOnEligible(product) && (
+            <button
+              type="button"
+              onClick={handleTryOn}
+              className="w-full inline-flex items-center justify-center gap-2 bg-black text-white px-3 py-2 text-xs tracking-widest uppercase"
+            >
+              <Shirt size={12} />
+              Try on
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleBuy}
+            disabled={!product.offerId}
+            className="w-full inline-flex items-center justify-center gap-2 border border-black px-3 py-2 text-xs tracking-widest uppercase hover:bg-black hover:text-white disabled:opacity-40"
+          >
+            Go to retailer
+            <ExternalLink size={12} />
+          </button>
+        </div>
       </div>
     </article>
   );

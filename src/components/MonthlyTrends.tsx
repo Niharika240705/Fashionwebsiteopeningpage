@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import newspaperImage from '../assets/5c11e6d90c23a297f8dcaca6caf3a4b238514587.png';
 
 interface TrendBlock {
@@ -8,8 +9,9 @@ interface TrendBlock {
   description: string;
   tag: string;
   column: 'left' | 'right';
-  heightPx: number; // natural height
-  order: number; // vertical position in column
+  heightPx: number;
+  order: number;
+  shopPath: string;
 }
 
 const trendBlocks: TrendBlock[] = [
@@ -21,6 +23,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'left',
     heightPx: 480,
     order: 1,
+    shopPath: '/women/outerwear',
   },
   {
     id: 2,
@@ -30,6 +33,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'right',
     heightPx: 420,
     order: 1,
+    shopPath: '/women/wedding-gowns',
   },
   {
     id: 3,
@@ -39,6 +43,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'left',
     heightPx: 540,
     order: 2,
+    shopPath: '/women/tops',
   },
   {
     id: 4,
@@ -48,6 +53,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'right',
     heightPx: 380,
     order: 2,
+    shopPath: '/women/dresses',
   },
   {
     id: 5,
@@ -57,6 +63,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'left',
     heightPx: 460,
     order: 3,
+    shopPath: '/women/dresses',
   },
   {
     id: 6,
@@ -66,6 +73,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'right',
     heightPx: 520,
     order: 3,
+    shopPath: '/women/ethnic-wear',
   },
   {
     id: 7,
@@ -75,6 +83,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'left',
     heightPx: 400,
     order: 4,
+    shopPath: '/men/shirts',
   },
   {
     id: 8,
@@ -84,6 +93,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'right',
     heightPx: 440,
     order: 4,
+    shopPath: '/women/jewellery',
   },
   {
     id: 9,
@@ -93,6 +103,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'left',
     heightPx: 500,
     order: 5,
+    shopPath: '/men/tops',
   },
   {
     id: 10,
@@ -102,6 +113,7 @@ const trendBlocks: TrendBlock[] = [
     column: 'right',
     heightPx: 360,
     order: 5,
+    shopPath: '/women/accessories',
   },
 ];
 
@@ -167,6 +179,7 @@ export function MonthlyTrends() {
                   onHoverEnd={() => setHoveredId(null)}
                   className="cursor-pointer group"
                 >
+                  <Link to={trend.shopPath} className="block">
                   {/* Image - Auto height, full width, no cropping */}
                   <motion.div 
                     className="relative overflow-hidden shadow-md bg-neutral-100 mb-5 sm:mb-7 rounded-lg sm:rounded-none"
@@ -203,10 +216,11 @@ export function MonthlyTrends() {
                       animate={{ x: hoveredId === trend.id ? 6 : 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <span>Read Story</span>
+                      <span>Shop collection</span>
                       <span>&rarr;</span>
                     </motion.div>
                   </div>
+                  </Link>
                 </motion.article>
               ))}
             </div>
@@ -228,6 +242,7 @@ export function MonthlyTrends() {
                   onHoverEnd={() => setHoveredId(null)}
                   className="cursor-pointer group"
                 >
+                  <Link to={trend.shopPath} className="block">
                   {/* Image - Auto height, full width, no cropping */}
                   <motion.div 
                     className="relative overflow-hidden shadow-md bg-neutral-100 mb-7"
@@ -264,10 +279,11 @@ export function MonthlyTrends() {
                       animate={{ x: hoveredId === trend.id ? 6 : 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <span>Read Story</span>
+                      <span>Shop collection</span>
                       <span>&rarr;</span>
                     </motion.div>
                   </div>
+                  </Link>
                 </motion.article>
               ))}
             </div>

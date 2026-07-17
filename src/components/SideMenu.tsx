@@ -1,27 +1,14 @@
 import { X, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
+import {
+  Audience,
+  getCategoriesForAudience,
+  labelForCategory,
+} from '../utils/taxonomy';
 
 type MainCategory = 'Women' | 'Men' | 'Kids' | null;
-type SubCategory = 'Accessories' | 'Shoes' | 'Bags' | 'Clothes' | null;
-
-const styleTypes = [
-  'Western',
-  'Traditional / Ethnic',
-  'Casual',
-  'Formal',
-  'Semi-Formal',
-  'Streetwear',
-  'Sportswear / Activewear',
-  'Party / Evening Wear',
-  'Bohemian (Boho)',
-  'Vintage / Retro',
-  'Luxury / Designer',
-  'Modest Fashion',
-  'Fusion / Indo-Western',
-  'Loungewear',
-  'Winterwear / Seasonal Wear',
-];
+type SubCategory = 'Accessories' | 'Shoes' | 'Bags' | 'Jewellery' | 'Clothes' | null;
 
 const moodImages = [
   'https://images.unsplash.com/photo-1719518411339-5158cea86caf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbHV4dXJ5JTIwZWRpdG9yaWFsfGVufDF8fHx8MTc2NTIxNjQ0NHww&ixlib=rb-4.1.0&q=80&w=1080',
@@ -38,45 +25,55 @@ interface SideMenuProps {
   onNavigate?: (path: string) => void;
 }
 
-const WOMEN_CATEGORY_MAP: Record<string, string> = {
-  Clothes: 'dresses',
+const AUDIENCE_PATH: Record<Exclude<MainCategory, null>, string> = {
+  Women: 'women',
+  Men: 'men',
+  Kids: 'kids',
+};
+
+const CATEGORY_MAP: Record<string, string> = {
   Accessories: 'accessories',
   Shoes: 'footwear',
   Bags: 'bags',
-  'Traditional / Ethnic': 'ethnic-wear',
-  Western: 'tops',
+  Jewellery: 'jewellery',
 };
+
+const CLOTHING_CATEGORIES = new Set([
+  'wedding-gowns',
+  'dresses',
+  'tops',
+  'bottoms',
+  'shirts',
+  'sets',
+  'ethnic-wear',
+  'outerwear',
+  'activewear',
+  'loungewear',
+]);
 
 export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
   const [selectedMain, setSelectedMain] = useState<MainCategory>(null);
   const [selectedSub, setSelectedSub] = useState<SubCategory>(null);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [imageTransition, setImageTransition] = useState(false);
 
+  const audienceSlug: Audience = selectedMain ? (AUDIENCE_PATH[selectedMain] as Audience) : 'women';
+  const clothingCategories = getCategoriesForAudience(audienceSlug).filter((c) =>
+    CLOTHING_CATEGORIES.has(c)
+  );
+
   const handleMainClick = (category: MainCategory) => {
-    if (category === 'Men') {
-      onNavigate?.('/men');
-      onClose();
-      return;
-    }
-    if (category === 'Kids') {
-      onNavigate?.('/kids');
-      onClose();
-      return;
-    }
     setImageTransition(true);
     setTimeout(() => {
       setSelectedMain(category);
       setSelectedSub(null);
-      setSelectedStyles([]);
       setImageTransition(false);
     }, 200);
   };
 
   const handleSubClick = (category: SubCategory) => {
-    if (selectedMain === 'Women' && category && category !== 'Clothes') {
-      const slug = WOMEN_CATEGORY_MAP[category] || category.toLowerCase();
-      onNavigate?.(`/women/${slug}`);
+    if (selectedMain && category && category !== 'Clothes') {
+      const slug = CATEGORY_MAP[category] || category.toLowerCase();
+      onNavigate?.(`/${AUDIENCE_PATH[selectedMain]}/${slug}`);
       onClose();
       return;
     }
@@ -99,14 +96,9 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
     }, 200);
   };
 
-  const toggleStyle = (style: string) => {
-    setImageTransition(true);
-    setSelectedStyles(prev => 
-      prev.includes(style) 
-        ? prev.filter(s => s !== style)
-        : [...prev, style]
-    );
-    setTimeout(() => setImageTransition(false), 400);
+  const openClothingCategory = (slug: string) => {
+    onNavigate?.(`/${audienceSlug}/${slug}`);
+    onClose();
   };
 
   return (
@@ -221,7 +213,7 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
                       {selectedMain}
                     </motion.h2>
                     <div className="space-y-4 sm:space-y-5">
-                      {['Accessories', 'Shoes', 'Bags', 'Clothes'].map((category, index) => (
+                      {['Clothes', 'Shoes', 'Bags', 'Jewellery', 'Accessories'].map((category, index) => (
                         <motion.button
                           key={category}
                           initial={{ opacity: 0, y: 20 }}
@@ -258,56 +250,28 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
                       animate={{ opacity: 1, y: 0 }}
                       className="text-[10px] sm:text-xs tracking-[0.3em] uppercase text-black/30 mb-8 sm:mb-12 text-left"
                     >
-                      Select Style Type
+                      {selectedMain} · Clothes
                     </motion.h2>
                     <div className="space-y-2">
-                      {styleTypes.map((style, index) => {
-                        const isSelected = selectedStyles.includes(style);
-                        return (
-                          <motion.button
-                            key={style}
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.05 + index * 0.04, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                            onClick={() => toggleStyle(style)}
-                            whileHover={{ x: 3 }}
-                            className={`w-full py-3 sm:py-4 px-4 sm:px-6 text-left relative overflow-hidden transition-all duration-500 ease-in-out ${
-                              isSelected
-                                ? 'bg-black/8 shadow-sm'
-                                : 'hover:bg-black/3'
-                            }`}
-                            style={{
-                              borderRadius: '0.5rem',
-                            }}
+                      {clothingCategories.map((slug, index) => (
+                        <motion.button
+                          key={slug}
+                          initial={{ opacity: 0, y: 15 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.05 + index * 0.04, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                          onClick={() => openClothingCategory(slug)}
+                          whileHover={{ x: 3 }}
+                          className="w-full py-3 sm:py-4 px-4 sm:px-6 text-left hover:bg-black/3 transition-all"
+                          style={{ borderRadius: '0.5rem' }}
+                        >
+                          <span
+                            className="tracking-wider text-xs sm:text-sm"
+                            style={{ fontFamily: 'Inter, sans-serif' }}
                           >
-                            {/* Left accent bar for selected state */}
-                            <motion.div
-                              initial={{ scaleY: 0 }}
-                              animate={{ scaleY: isSelected ? 1 : 0 }}
-                              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                              className="absolute left-0 top-0 bottom-0 w-[3px] bg-black origin-top"
-                            />
-                            
-                            <span 
-                              className={`tracking-wider transition-all duration-500 text-xs sm:text-sm ${
-                                isSelected ? 'font-medium' : 'font-normal'
-                              }`}
-                              style={{ fontFamily: 'Inter, sans-serif' }}
-                            >
-                              {style}
-                            </span>
-
-                            {/* Subtle glow effect for selected */}
-                            {isSelected && (
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="absolute inset-0 bg-gradient-to-r from-black/5 to-transparent pointer-events-none"
-                              />
-                            )}
-                          </motion.button>
-                        );
-                      })}
+                            {labelForCategory(slug)}
+                          </span>
+                        </motion.button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -327,7 +291,7 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
               {/* Image Grid with transition overlay */}
               <AnimatePresence mode="wait">
                 <motion.div 
-                  key={`${selectedMain}-${selectedSub}-${selectedStyles.join(',')}`}
+                  key={`${selectedMain}-${selectedSub}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: imageTransition ? 0.3 : 1 }}
                   exit={{ opacity: 0 }}

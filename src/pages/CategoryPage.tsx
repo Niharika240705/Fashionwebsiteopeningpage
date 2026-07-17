@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProductFilters } from '../components/products/ProductFilters';
 import { ProductGrid } from '../components/products/ProductGrid';
+import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
 import { getProducts } from '../utils/api';
 import { ProductFacets, ProductQuery, ProductSummary } from '../types/product';
 import { trackEvent } from '../utils/analytics';
+import {
+  defaultCategoryForAudience,
+  isAudience,
+  labelForAudience,
+  labelForCategory,
+} from '../utils/taxonomy';
 
-export function CategoryPage() {
-  const { category = 'dresses' } = useParams();
+interface CategoryPageProps {
+  onRequireAuth?: () => void;
+}
+
+export function CategoryPage({ onRequireAuth }: CategoryPageProps) {
+  const { audience: audienceParam, category: categoryParam } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [products, setProducts] = useState<ProductSummary[]>([]);
@@ -15,10 +26,15 @@ export function CategoryPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tryOnProduct, setTryOnProduct] = useState<ProductSummary | null>(null);
+
+  const audienceValid = isAudience(audienceParam);
+  const audience = audienceValid ? audienceParam : 'women';
+  const category = categoryParam || defaultCategoryForAudience(audience);
 
   const query: ProductQuery = useMemo(
     () => ({
-      audience: 'women',
+      audience,
       category,
       sort: (searchParams.get('sort') as ProductQuery['sort']) || 'trending',
       page: Number(searchParams.get('page') || 1),
@@ -28,13 +44,14 @@ export function CategoryPage() {
       inStock: searchParams.get('inStock') === 'true' || undefined,
       brand: searchParams.get('brand')?.split(',').filter(Boolean),
     }),
-    [category, searchParams]
+    [audience, category, searchParams]
   );
 
   useEffect(() => {
+    if (!audienceValid) return;
     let cancelled = false;
     setLoading(true);
-    trackEvent('category_viewed', { category });
+    trackEvent('category_viewed', { audience, category });
     getProducts(query)
       .then((data) => {
         if (cancelled) return;
@@ -52,7 +69,11 @@ export function CategoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, category]);
+  }, [query, audience, category, audienceValid]);
+
+  if (!audienceValid) {
+    return <Navigate to="/women/dresses" replace />;
+  }
 
   const updateQuery = (next: Partial<ProductQuery>) => {
     const params = new URLSearchParams(searchParams);
@@ -72,13 +93,15 @@ export function CategoryPage() {
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-14">
       <div className="mb-8 flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs tracking-[0.25em] uppercase text-black/50 mb-2">Women</p>
-          <h1 className="text-3xl md:text-4xl capitalize">{category.replace('-', ' ')}</h1>
+          <p className="text-xs tracking-[0.25em] uppercase text-black/50 mb-2">
+            {labelForAudience(audience)}
+          </p>
+          <h1 className="text-3xl md:text-4xl">{labelForCategory(category)}</h1>
           <p className="text-sm text-black/50 mt-2">{total} styles from partner retailers</p>
         </div>
         <button
           type="button"
-          onClick={() => navigate('/search')}
+          onClick={() => navigate(`/search?audience=${audience}`)}
           className="text-xs tracking-widest uppercase border border-black px-4 py-2"
         >
           Search
@@ -91,10 +114,21 @@ export function CategoryPage() {
           {error ? (
             <p className="text-red-600 py-10">{error}</p>
           ) : (
-            <ProductGrid products={products} loading={loading} />
+            <ProductGrid
+              products={products}
+              loading={loading}
+              onTryOn={setTryOnProduct}
+              onRequireAuth={onRequireAuth}
+            />
           )}
         </div>
       </div>
+
+      <VirtualTryOnModal
+        isOpen={!!tryOnProduct}
+        product={tryOnProduct}
+        onClose={() => setTryOnProduct(null)}
+      />
     </div>
   );
 }

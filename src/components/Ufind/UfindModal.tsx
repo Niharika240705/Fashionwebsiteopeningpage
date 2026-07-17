@@ -1,71 +1,84 @@
-import React from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Audience } from '../../utils/taxonomy';
 
-type BodyShape = 'Hourglass' | 'Pear' | 'Apple' | 'Rectangle' | 'Inverted Triangle' | 'Athletic';
+export type WomenBodyShape =
+  | 'Hourglass'
+  | 'Pear'
+  | 'Apple'
+  | 'Rectangle'
+  | 'Inverted Triangle'
+  | 'Athletic';
+
+export type MenBodyShape =
+  | 'Trapezoid'
+  | 'Triangle'
+  | 'Inverted Triangle'
+  | 'Oval'
+  | 'Rectangle'
+  | 'Athletic';
+
+export type BodyShape = WomenBodyShape | MenBodyShape;
 
 interface UfindModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onShapeSelect: (shape: BodyShape) => void;
-  onStartQuestionnaire: () => void;
+  onShapeSelect: (shape: BodyShape, audience: Audience) => void;
+  onStartQuestionnaire: (audience: Audience) => void;
+  requireAuth?: boolean;
+  isAuthenticated?: boolean;
+  onRequireAuth?: () => void;
 }
 
-const bodyShapes: BodyShape[] = [
+const womenShapes: WomenBodyShape[] = [
   'Hourglass',
   'Pear',
   'Apple',
   'Rectangle',
   'Inverted Triangle',
-  'Athletic'
+  'Athletic',
 ];
 
-// Simple monochrome SVG icons for each body shape
-const ShapeIcon = ({ shape }: { shape: BodyShape }) => {
-  const icons: Record<BodyShape, React.ReactElement> = {
-    'Hourglass': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 3v18M8 3h8M7 21h10M8 3c0 3-2 6-2 9s2 6 2 9M16 3c0 3 2 6 2 9s-2 6-2 9" strokeLinecap="round"/>
-      </svg>
-    ),
-    'Pear': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 3v18M10 3h4M8 21h8M10 3c0 2-1 4-1 6s0 4 0 6c0 2 1 4 3 6M14 3c0 2 1 4 1 6s0 4 0 6c0 2-1 4-3 6" strokeLinecap="round"/>
-      </svg>
-    ),
-    'Apple': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <ellipse cx="12" cy="12" rx="5" ry="7"/>
-        <path d="M12 5v14M7 5h10M7 19h10" strokeLinecap="round"/>
-      </svg>
-    ),
-    'Rectangle': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="8" y="3" width="8" height="18" rx="1"/>
-        <line x1="12" y1="3" x2="12" y2="21"/>
-      </svg>
-    ),
-    'Inverted Triangle': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 3v18M7 3h10M9 21h6M7 3c0 3 0 6 0 9s1 6 5 9M17 3c0 3 0 6 0 9s-1 6-5 9" strokeLinecap="round"/>
-      </svg>
-    ),
-    'Athletic': (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M12 3v18M8.5 3h7M8.5 21h7M8.5 3c0 4 0 8 0 12s0.5 4 3.5 6M15.5 3c0 4 0 8 0 12s-0.5 4-3.5 6" strokeLinecap="round"/>
-      </svg>
-    ),
+const menShapes: MenBodyShape[] = [
+  'Trapezoid',
+  'Triangle',
+  'Inverted Triangle',
+  'Oval',
+  'Rectangle',
+  'Athletic',
+];
+
+const ShapeIcon = ({ shape }: { shape: string }) => (
+  <div className="w-12 h-12 flex items-center justify-center border border-black/15 text-[10px] tracking-widest uppercase">
+    {shape.slice(0, 2)}
+  </div>
+);
+
+export function UfindModal({
+  isOpen,
+  onClose,
+  onShapeSelect,
+  onStartQuestionnaire,
+  requireAuth = true,
+  isAuthenticated = false,
+  onRequireAuth,
+}: UfindModalProps) {
+  const [audience, setAudience] = useState<Audience>('women');
+  const shapes = audience === 'men' ? menShapes : womenShapes;
+
+  const guard = (action: () => void) => {
+    if (requireAuth && !isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+    action();
   };
 
-  return <div className="w-12 h-12">{icons[shape]}</div>;
-};
-
-export function UfindModal({ isOpen, onClose, onShapeSelect, onStartQuestionnaire }: UfindModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -75,75 +88,63 @@ export function UfindModal({ isOpen, onClose, onShapeSelect, onStartQuestionnair
             className="fixed inset-0 bg-black/40 backdrop-blur-md z-50"
           />
 
-          {/* Modal */}
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden"
-              style={{ fontFamily: 'Inter, sans-serif' }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 md:p-8"
             >
-              {/* Close Button */}
-              <div className="absolute top-6 right-6 z-10">
-                <button
-                  onClick={onClose}
-                  className="hover:opacity-60 transition-opacity p-2"
-                >
-                  <X size={20} strokeWidth={1.5} />
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-xs tracking-[0.2em] uppercase text-black/50 mb-2">UFind</p>
+                  <h2 className="text-2xl md:text-3xl">Discover your body type</h2>
+                  <p className="text-sm text-black/55 mt-2">
+                    Answer a short questionnaire or pick a shape. Guidance only — not a fit guarantee.
+                    Sign in required.
+                  </p>
+                </div>
+                <button type="button" onClick={onClose} className="p-2 hover:bg-black/5" aria-label="Close">
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Content */}
-              <div className="p-12">
-                <motion.h2 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-center mb-12"
-                  style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: '2.5rem' }}
-                >
-                  Choose Your Body Shape
-                </motion.h2>
-
-                {/* Body Shape Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-                  {bodyShapes.map((shape, index) => (
-                    <motion.button
-                      key={shape}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 + index * 0.05, duration: 0.4 }}
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => onShapeSelect(shape)}
-                      className="flex flex-col items-center gap-3 p-6 bg-neutral-50 hover:bg-neutral-100 rounded-2xl transition-all shadow-sm hover:shadow-md group"
-                    >
-                      <div className="text-black/60 group-hover:text-black transition-colors">
-                        <ShapeIcon shape={shape} />
-                      </div>
-                      <span className="text-sm tracking-wide text-center">{shape}</span>
-                    </motion.button>
-                  ))}
-                </div>
-
-                {/* Questionnaire Link */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="text-center"
-                >
+              <div className="flex gap-2 mb-6">
+                {(['women', 'men'] as Audience[]).map((option) => (
                   <button
-                    onClick={onStartQuestionnaire}
-                    className="text-sm text-black/40 hover:text-black transition-colors tracking-wide"
+                    key={option}
+                    type="button"
+                    onClick={() => setAudience(option)}
+                    className={`px-4 py-2 text-xs tracking-widest uppercase border ${
+                      audience === option ? 'bg-black text-white border-black' : 'border-black/20'
+                    }`}
                   >
-                    Not sure about your body shape?{' '}
-                    <span className="underline underline-offset-4">Find it here.</span>
+                    {option}
                   </button>
-                </motion.div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => guard(() => onStartQuestionnaire(audience))}
+                className="w-full mb-6 border border-black px-4 py-3 text-xs tracking-widest uppercase hover:bg-black hover:text-white"
+              >
+                Start questionnaire
+              </button>
+
+              <p className="text-xs tracking-[0.2em] uppercase text-black/45 mb-3">Or select a shape</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {shapes.map((shape) => (
+                  <button
+                    key={shape}
+                    type="button"
+                    onClick={() => guard(() => onShapeSelect(shape, audience))}
+                    className="border border-black/10 p-4 text-left hover:border-black transition-colors"
+                  >
+                    <ShapeIcon shape={shape} />
+                    <p className="mt-3 text-sm font-medium">{shape}</p>
+                  </button>
+                ))}
               </div>
             </motion.div>
           </div>

@@ -28,8 +28,15 @@ export interface SourceFetchResult {
   checkpoint?: string;
 }
 
+export interface SourceFetchOptions {
+  checkpoint?: string;
+  limit?: number;
+  audience?: Audience;
+  category?: string;
+}
+
 export interface SourceAdapter {
   sourceId: string;
   mode: 'affiliate_feed' | 'affiliate_api' | 'permitted_scrape';
-  fetchProducts(options?: { checkpoint?: string; limit?: number }): Promise<SourceFetchResult>;
+  fetchProducts(options?: SourceFetchOptions): Promise<SourceFetchResult>;
 }
