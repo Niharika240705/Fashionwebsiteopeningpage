@@ -2,7 +2,6 @@ import { X, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { trackExternalLink } from '../utils/analytics';
 import { LazyImage } from './LazyImage';
-import { ProtectedLink } from './ProtectedLink';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Outfit {

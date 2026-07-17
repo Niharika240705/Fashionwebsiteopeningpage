@@ -1,9 +1,9 @@
-import { motion, useMotionValue, useTransform, animate, useScroll } from 'motion/react';
+import { motion, useMotionValue, useTransform, animate } from 'motion/react';
 import { useState, useEffect } from 'react';
-import bgImage from 'figma:asset/6e45595c696a9eb4a2b03a0f569541c36c9f0457.png';
-import fashionImage1 from 'figma:asset/3894254e2cf740948e8589c22a75a5ecde389811.png';
-import fashionImage2 from 'figma:asset/bc1b49959fd4c00033c5b478058d367ca177b7f0.png';
-import fashionImage3 from 'figma:asset/8a370e24ba6fd833c66323001eca35159e221dbb.png';
+import bgImage from '../assets/6e45595c696a9eb4a2b03a0f569541c36c9f0457.png';
+import fashionImage1 from '../assets/3894254e2cf740948e8589c22a75a5ecde389811.png';
+import fashionImage2 from '../assets/bc1b49959fd4c00033c5b478058d367ca177b7f0.png';
+import fashionImage3 from '../assets/8a370e24ba6fd833c66323001eca35159e221dbb.png';
 
 // Only existing black-and-white fashion images (removed PERSONA overlay image)
 const fashionImages = [
@@ -16,13 +16,6 @@ const fashionImages = [
 export function HeroSection() {
   const rotationX = useMotionValue(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { scrollY } = useScroll();
-  
-  // Transform PERSONA based on scroll
-  const personaScale = useTransform(scrollY, [0, 300], [1, 0]);
-  const personaY = useTransform(scrollY, [0, 300], [0, -200]);
-  const personaOpacity = useTransform(scrollY, [0, 200], [1, 0]);
-
   // Lighting effects based on rotation
   const lightShift = useTransform(rotationX, 
     [0, -45, -90], 

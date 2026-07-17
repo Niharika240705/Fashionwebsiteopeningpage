@@ -1,3 +1,4 @@
+import React from 'react';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -21,7 +22,7 @@ const bodyShapes: BodyShape[] = [
 
 // Simple monochrome SVG icons for each body shape
 const ShapeIcon = ({ shape }: { shape: BodyShape }) => {
-  const icons: Record<BodyShape, JSX.Element> = {
+  const icons: Record<BodyShape, React.ReactElement> = {
     'Hourglass': (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M12 3v18M8 3h8M7 21h10M8 3c0 3-2 6-2 9s2 6 2 9M16 3c0 3 2 6 2 9s-2 6-2 9" strokeLinecap="round"/>

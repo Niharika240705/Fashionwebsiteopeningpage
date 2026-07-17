@@ -8,12 +8,16 @@ if (process.env.GOOGLE_CLIENT_ID &&
     process.env.GOOGLE_CLIENT_SECRET && 
     process.env.GOOGLE_CLIENT_ID !== 'your-google-client-id-here' &&
     process.env.GOOGLE_CLIENT_SECRET !== 'your-google-client-secret-here') {
+  const callbackURL =
+    process.env.GOOGLE_CALLBACK_URL ||
+    `${process.env.BACKEND_URL || 'http://localhost:5001'}/api/auth/google/callback`;
+
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback',
+        callbackURL,
       },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -21,15 +25,19 @@ if (process.env.GOOGLE_CLIENT_ID &&
         let user = await User.findOne({ email: profile.emails?.[0]?.value });
 
         if (user) {
-          // Update provider if needed
-          if (user.provider !== 'google') {
-            user.provider = 'google';
+          // Link Google without overwriting local password provider identity
+          if (!user.providerId) {
             user.providerId = profile.id;
-            if (profile.photos?.[0]?.value) {
-              user.avatar = profile.photos[0].value;
-            }
-            await user.save();
           }
+          if (profile.photos?.[0]?.value && !user.avatar) {
+            user.avatar = profile.photos[0].value;
+          }
+          if (user.provider === 'local') {
+            // Keep local as primary; still allow Google login via providerId/email match
+          } else {
+            user.provider = 'google';
+          }
+          await user.save();
           return done(null, user);
         }
 
@@ -46,7 +54,7 @@ if (process.env.GOOGLE_CLIENT_ID &&
         await user.save();
         return done(null, user);
       } catch (error: any) {
-        return done(error, null);
+        return done(error, false);
       }
     }
   ));
@@ -64,7 +72,7 @@ passport.deserializeUser(async (id: string, done) => {
     const user = await User.findById(id);
     done(null, user);
   } catch (error) {
-    done(error, null);
+    done(error, false);
   }
 });
 

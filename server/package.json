@@ -3,12 +3,18 @@
   "version": "1.0.0",
   "description": "Backend server for fashion website",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "scrape:myntra": "tsx src/scripts/scrape-myntra-comprehensive.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "scrape:myntra": "tsx src/scripts/scrape-myntra-comprehensive.ts",
+    "ingest:demo": "tsx src/scripts/seed-demo-catalog.ts"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -31,11 +37,10 @@
     "@aws-sdk/client-s3": "^3.490.0",
     "@supabase/supabase-js": "^2.38.5",
     "sharp": "^0.32.6",
-    "rembg": "^2.0.50",
-    "@tensorflow/tfjs-node": "^4.15.0",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
+    "vitest": "^2.1.8",
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.0",
     "@types/bcryptjs": "^2.4.6",

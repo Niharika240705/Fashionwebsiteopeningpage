@@ -89,9 +89,13 @@ export class ScrapingOrchestratorService {
             images: {
               original: scrapedProduct.images,
               processed: processedImages,
+              approved: processedImages,
             },
             productUrl: scrapedProduct.productUrl,
+            canonicalUrl: scrapedProduct.productUrl,
             sourceWebsite: scrapedProduct.sourceWebsite,
+            retailerId: scrapedProduct.sourceWebsite,
+            audience: 'women',
             appearanceCount: 1,
             metadata: scrapedProduct.metadata,
           });

@@ -154,13 +154,17 @@ export class TrendDetectionService {
   /**
    * Get trending products based on category
    */
-  async getTrendingByCategory(category?: string, limit: number = 20): Promise<IProduct[]> {
-    const query: any = { trendScore: { $gt: 0 } };
+  async getTrendingByCategory(
+    category?: string,
+    limit: number = 20,
+    audience: string = 'women'
+  ): Promise<Array<IProduct | any>> {
+    const query: any = { audience };
     if (category) {
       query.category = category;
     }
 
-    return await Product.find(query)
+    return Product.find(query)
       .sort({ trendScore: -1, createdAt: -1 })
       .limit(limit)
       .lean();

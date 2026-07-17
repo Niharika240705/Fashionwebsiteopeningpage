@@ -6,39 +6,111 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
+import passport from 'passport';
 
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
+import redirectRoutes from './routes/redirect.routes';
+import adminIngestionRoutes from './routes/admin-ingestion.routes';
+import monitoringRoutes from './routes/monitoring.routes';
 import './config/passport.config';
+import { IngestionOrchestratorService } from './services/ingestion/ingestion-orchestrator.service';
+
+const DEFAULT_SECRETS = new Set([
+  'your-secret-key-change-in-production',
+  'your-refresh-secret-key',
+  'your-super-secret-jwt-key-min-32-characters',
+  'your-super-secret-refresh-key-min-32-characters',
+  'your-super-secret-session-key-min-32-characters',
+]);
+
+function assertProductionConfig(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const required = [
+    'MONGODB_URI',
+    'JWT_SECRET',
+    'REFRESH_TOKEN_SECRET',
+    'SESSION_SECRET',
+    'FRONTEND_URL',
+  ] as const;
+
+  for (const key of required) {
+    const value = process.env[key];
+    const secretTooShort = key.includes('SECRET') && (!value || value.length < 32);
+    if (!value || DEFAULT_SECRETS.has(value) || secretTooShort) {
+      console.error(`❌ Refusing to start: ${key} is missing or insecure for production`);
+      process.exit(1);
+    }
+  }
+}
+
+assertProductionConfig();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-// Security middleware
-app.use(helmet());
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_URLS || '').split(','),
+]
+  .map((origin) => origin?.trim())
+  .filter(Boolean) as string[];
+
+if (!allowedOrigins.length) {
+  allowedOrigins.push('http://localhost:3000');
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
 }));
 
-// Rate limiting (exclude health check)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: { message: 'Too many requests from this IP, please try again later.' },
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { message: 'Too many requests from this IP, please try again later.' },
 });
-app.use('/api/auth', limiter);
-app.use('/api/user', limiter);
 
-// Body parsing middleware
-app.use(express.json());
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many auth requests from this IP, please try again later.' },
+});
+
+const redirectLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many redirect requests from this IP, please try again later.' },
+});
+
+app.use('/api', globalLimiter);
+app.use('/api/auth', authLimiter);
+app.use('/api/r', redirectLimiter);
+
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Session configuration (MUST be before Passport)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
   resave: false,
@@ -46,56 +118,72 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   },
 }));
 
-// Initialize Passport (AFTER session)
-import passport from 'passport';
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fashion-website')
-  .then(() => {
-    console.log('✅ Connected to MongoDB');
-  })
-  .catch((error) => {
-    console.error('❌ MongoDB connection error:', error);
-    process.exit(1);
+app.get('/api/health', (_req, res) => {
+  const mongoReady = mongoose.connection.readyState === 1;
+  res.status(mongoReady ? 200 : 503).json({
+    status: mongoReady ? 'ok' : 'degraded',
+    mongo: mongoReady,
+    timestamp: new Date().toISOString(),
   });
-
-// Health check (before rate limiting)
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/r', redirectRoutes);
+app.use('/api/admin/ingestion', adminIngestionRoutes);
+app.use('/api/monitoring', monitoringRoutes);
 
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('Error:', err);
+  const isProd = process.env.NODE_ENV === 'production';
   res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    message: isProd ? 'Internal server error' : err.message || 'Internal server error',
+    ...(!isProd && { stack: err.stack }),
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+async function start() {
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/fashion-website';
 
-  // Setup scheduled jobs (only in production or if enabled)
-  if (process.env.ENABLE_SCHEDULED_SCRAPING === 'true') {
-    const { setupScrapingJobs } = require('./jobs/scraping.job');
-    setupScrapingJobs();
+  try {
+    await mongoose.connect(mongoUri);
+    console.log('✅ Connected to MongoDB');
+
+    try {
+      const orchestrator = new IngestionOrchestratorService();
+      await orchestrator.ensureSeedSources();
+      if (process.env.AUTO_INGEST_DEMO === 'true') {
+        await orchestrator.ingestSource('demo-affiliate', { limit: 20, processImages: false });
+        console.log('✅ Demo affiliate catalog seeded');
+      }
+    } catch (error) {
+      console.warn('⚠️  Source seed/ingest skipped:', error);
+    }
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+
+      if (process.env.ENABLE_SCHEDULED_SCRAPING === 'true') {
+        const { setupScrapingJobs } = require('./jobs/scraping.job');
+        setupScrapingJobs();
+      }
+    });
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error);
+    process.exit(1);
   }
-});
+}
+
+start();
 
 export default app;
-

@@ -86,13 +86,13 @@ export function Footer() {
                 Contact Us
               </a>
               <a 
-                href="#privacy" 
+                href="/privacy" 
                 className="text-sm text-white hover:text-[#CCCCCC] transition-colors"
               >
                 Privacy Policy
               </a>
               <a 
-                href="#terms" 
+                href="/terms" 
                 className="text-sm text-white hover:text-[#CCCCCC] transition-colors"
               >
                 Terms & Conditions

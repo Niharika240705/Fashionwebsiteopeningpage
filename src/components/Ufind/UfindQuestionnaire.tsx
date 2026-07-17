@@ -1,4 +1,3 @@
-import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 
@@ -75,7 +74,7 @@ export function UfindQuestionnaire({ isOpen, onClose, onComplete }: UfindQuestio
 
   const calculateBodyShape = (userAnswers: Answer[]): string => {
     // Simplified body shape calculation logic
-    const [q1, q2, q3, q4, q5, q6] = userAnswers;
+    const [q1, q2, q3, q4, q5] = userAnswers;
     
     if (q2 === 'Very defined' && (q4 === 'They are almost equal' || q5 === 'Curvy')) {
       return 'Hourglass';

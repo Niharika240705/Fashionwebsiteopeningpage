@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_URL } from '../utils/api';
 
 interface User {
   id: string;
@@ -6,6 +7,7 @@ interface User {
   name: string;
   avatar?: string;
   provider: 'local' | 'google' | 'apple';
+  role?: 'user' | 'admin';
 }
 
 interface AuthContextType {
@@ -17,138 +19,120 @@ interface AuthContextType {
   loginWithGoogle: () => void;
   loginWithApple: () => Promise<void>;
   logout: () => void;
-  setAuthTokens: (accessToken: string, refreshToken: string) => void;
+  refreshSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001/api';
+async function parseError(response: Response, fallback: string): Promise<string> {
+  try {
+    const error = await response.json();
+    return error.message || fallback;
+  } catch {
+    const text = await response.text();
+    return text || fallback;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing session on mount
   useEffect(() => {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
+  const refreshSession = async (): Promise<boolean> => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        setIsLoading(false);
-        return;
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        setUser(null);
+        return false;
       }
 
+      const data = await response.json();
+      if (data.user) {
+        setUser(data.user);
+        return true;
+      }
+
+      return checkAuthSilent();
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      setUser(null);
+      return false;
+    }
+  };
+
+  const checkAuthSilent = async (): Promise<boolean> => {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      setUser(null);
+      return false;
+    }
+    const data = await response.json();
+    setUser(data.user);
+    return true;
+  };
+
+  const checkAuth = async () => {
+    try {
       const response = await fetch(`${API_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+      } else if (response.status === 401 || response.status === 403) {
+        await refreshSession();
       } else {
-        // Token invalid, try refresh
-        await refreshToken();
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const refreshToken = async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        setUser(null);
-        return;
-      }
-
-      const response = await fetch(`${API_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('accessToken', data.accessToken);
-        await checkAuth();
-      } else {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        setUser(null);
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      setUser(null);
     }
   };
 
   const login = async (email: string, password: string) => {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
 
     if (!response.ok) {
-      let errorMessage = 'Login failed';
-      try {
-        const error = await response.json();
-        errorMessage = error.message || errorMessage;
-      } catch {
-        // If response is not JSON, try to get text
-        const text = await response.text();
-        errorMessage = text || errorMessage;
-      }
-      throw new Error(errorMessage);
+      throw new Error(await parseError(response, 'Login failed'));
     }
 
     const data = await response.json();
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
   };
 
   const register = async (email: string, password: string, name: string) => {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
 
     if (!response.ok) {
-      let errorMessage = 'Registration failed';
-      try {
-        const error = await response.json();
-        errorMessage = error.message || errorMessage;
-      } catch {
-        // If response is not JSON, try to get text
-        const text = await response.text();
-        errorMessage = text || errorMessage;
-      }
-      throw new Error(errorMessage);
+      throw new Error(await parseError(response, 'Registration failed'));
     }
 
     const data = await response.json();
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
   };
 
@@ -157,41 +141,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithApple = async () => {
-    // Apple Sign In implementation
-    // This requires additional setup with Apple's Sign In JS library
-    try {
-      // For now, show a message that Apple Sign In needs to be configured
-      alert('Apple Sign In is being configured. Please use Google or email/password for now.');
-    } catch (error) {
-      console.error('Apple Sign In error:', error);
-      throw error;
-    }
+    alert('Apple Sign In is being configured. Please use Google or email/password for now.');
   };
 
   const logout = async () => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (accessToken) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-      }
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
       setUser(null);
     }
-  };
-
-  const setAuthTokens = (accessToken: string, refreshToken: string) => {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    checkAuth();
   };
 
   return (
@@ -205,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         loginWithApple,
         logout,
-        setAuthTokens,
+        refreshSession,
       }}
     >
       {children}
@@ -220,4 +183,3 @@ export function useAuth() {
   }
   return context;
 }
-

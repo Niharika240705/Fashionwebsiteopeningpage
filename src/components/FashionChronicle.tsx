@@ -15,7 +15,7 @@ interface ChronicleArticle {
     author: string;
     sections: {
       heading?: string;
-      text: string;
+      text?: string;
       image?: string;
     }[];
   };

@@ -3,13 +3,5 @@
 User-agent: *
 Allow: /
 
-# Disallow admin or private areas (if you add them later)
-# Disallow: /admin/
-# Disallow: /api/
-
-# Sitemap location
-Sitemap: https://yourdomain.com/sitemap.xml
-
-# Crawl-delay (optional, adjust based on your server capacity)
-# Crawl-delay: 1
-
+# Sitemap location (replace with your Vercel production domain)
+Sitemap: https://fashionwebsiteopeningpage.vercel.app/sitemap.xml

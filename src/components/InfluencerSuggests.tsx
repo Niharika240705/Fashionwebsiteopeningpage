@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
-import chanelImage from 'figma:asset/9001957e229e27a8068455211b50aa8c01ee7c5c.png';
+import chanelImage from '../assets/9001957e229e27a8068455211b50aa8c01ee7c5c.png';
 
 interface InfluencerBlock {
   id: number;

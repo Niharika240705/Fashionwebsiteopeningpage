@@ -8,7 +8,9 @@ export interface IUser extends Document {
   provider: 'local' | 'google' | 'apple';
   providerId?: string;
   avatar?: string;
+  role: 'user' | 'admin';
   isVerified: boolean;
+  savedProductIds: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -47,9 +49,18 @@ const UserSchema = new Schema<IUser>(
     avatar: {
       type: String,
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    savedProductIds: {
+      type: [String],
+      default: [],
     },
   },
   {

@@ -35,15 +35,35 @@ const moodImages = [
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigate?: (path: string) => void;
 }
 
-export function SideMenu({ isOpen, onClose }: SideMenuProps) {
+const WOMEN_CATEGORY_MAP: Record<string, string> = {
+  Clothes: 'dresses',
+  Accessories: 'accessories',
+  Shoes: 'footwear',
+  Bags: 'bags',
+  'Traditional / Ethnic': 'ethnic-wear',
+  Western: 'tops',
+};
+
+export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
   const [selectedMain, setSelectedMain] = useState<MainCategory>(null);
   const [selectedSub, setSelectedSub] = useState<SubCategory>(null);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [imageTransition, setImageTransition] = useState(false);
 
   const handleMainClick = (category: MainCategory) => {
+    if (category === 'Men') {
+      onNavigate?.('/men');
+      onClose();
+      return;
+    }
+    if (category === 'Kids') {
+      onNavigate?.('/kids');
+      onClose();
+      return;
+    }
     setImageTransition(true);
     setTimeout(() => {
       setSelectedMain(category);
@@ -54,13 +74,15 @@ export function SideMenu({ isOpen, onClose }: SideMenuProps) {
   };
 
   const handleSubClick = (category: SubCategory) => {
+    if (selectedMain === 'Women' && category && category !== 'Clothes') {
+      const slug = WOMEN_CATEGORY_MAP[category] || category.toLowerCase();
+      onNavigate?.(`/women/${slug}`);
+      onClose();
+      return;
+    }
     setImageTransition(true);
     setTimeout(() => {
-      if (category === 'Clothes') {
-        setSelectedSub(category);
-      } else {
-        setSelectedSub(category);
-      }
+      setSelectedSub(category);
       setImageTransition(false);
     }, 200);
   };

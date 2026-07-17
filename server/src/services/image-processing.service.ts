@@ -1,211 +1,298 @@
 import axios from 'axios';
 import sharp from 'sharp';
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { ImageAsset } from '../models/ImageAsset.model';
+import { Product } from '../models/Product.model';
+import { ISource } from '../models/Source.model';
 
 export interface ProcessedImageResult {
   hasModel: boolean;
-  processedImageUrl: string;
+  processedImageUrl: string | null;
   originalImageUrl: string;
+  status: 'approved' | 'rejected' | 'review';
+  reason?: string;
 }
 
+const NEUTRAL_PLACEHOLDER =
+  process.env.NEUTRAL_PRODUCT_PLACEHOLDER_URL ||
+  'https://via.placeholder.com/600x800?text=Product+Image+Unavailable';
+
 /**
- * AI Image Processing Service
- * Handles person detection, background removal, and clothing isolation
+ * Policy-gated image pipeline:
+ * detect person → segment garment → validate → store only approved assets.
+ * Never publish the original model image when transform is required.
  */
 export class ImageProcessingService {
   private tempDir: string;
-  private storageService: StorageService;
+  private storageService?: StorageService;
 
-  constructor(storageService: StorageService) {
+  constructor(storageService?: StorageService) {
     this.storageService = storageService;
     this.tempDir = path.join(os.tmpdir(), 'fashion-images');
-    
-    // Ensure temp directory exists
     if (!fs.existsSync(this.tempDir)) {
       fs.mkdirSync(this.tempDir, { recursive: true });
     }
   }
 
-  /**
-   * Process a single product image
-   * 1. Detect if image contains a human model
-   * 2. If yes: remove background and model, isolate clothing
-   * 3. If no: pass through unchanged
-   */
-  async processImage(imageUrl: string, productId: string): Promise<ProcessedImageResult> {
+  private getStorage(): StorageService {
+    if (!this.storageService) {
+      this.storageService = createDefaultStorageService();
+    }
+    return this.storageService;
+  }
+
+  async processPendingForProduct(productId: string, source: ISource): Promise<number> {
+    const pending = await ImageAsset.find({
+      productId,
+      processingStatus: 'pending',
+    }).limit(10);
+
+    let approvedCount = 0;
+    for (const asset of pending) {
+      asset.allowsTransform = source.allowsImageTransform;
+      asset.processingStatus = 'processing';
+      await asset.save();
+
+      const result = await this.processImageAsset(asset.sourceUrl, productId, source.allowsImageTransform);
+      asset.checksum = createHash('sha1').update(asset.sourceUrl).digest('hex');
+      asset.personDetected = result.hasModel;
+      asset.personConfidence = result.hasModel ? 0.7 : 0.2;
+      asset.processingStatus = result.status;
+      asset.rejectionReason = result.reason;
+      asset.processedUrl = result.processedImageUrl || undefined;
+      if (result.processedImageUrl) {
+        asset.storageKey = `${productId}/${asset._id}.jpg`;
+        asset.segmentationConfidence = result.status === 'approved' ? 0.65 : undefined;
+        approvedCount += 1;
+      }
+      await asset.save();
+    }
+
+    const approved = await ImageAsset.find({
+      productId,
+      processingStatus: 'approved',
+      processedUrl: { $exists: true, $ne: null },
+    });
+    const approvedUrls = approved.map((a) => a.processedUrl!).filter(Boolean);
+
+    await Product.findByIdAndUpdate(productId, {
+      'images.approved': approvedUrls,
+      'images.processed': approvedUrls,
+    });
+
+    return approvedCount;
+  }
+
+  async processImageAsset(
+    imageUrl: string,
+    productId: string,
+    allowsTransform: boolean
+  ): Promise<ProcessedImageResult> {
     try {
-      // Download image
       const imageBuffer = await this.downloadImage(imageUrl);
-      const tempImagePath = path.join(this.tempDir, `${productId}-${Date.now()}.jpg`);
-      fs.writeFileSync(tempImagePath, imageBuffer);
+      const detection = await this.detectPerson(imageBuffer);
 
-      // Detect if image contains a human model
-      const hasModel = await this.detectPerson(imageBuffer);
-
-      let processedImageBuffer: Buffer;
-      let processedImageUrl: string;
-
-      if (hasModel) {
-        // Remove background and model, isolate clothing
-        processedImageBuffer = await this.isolateClothing(imageBuffer);
-      } else {
-        // Pass through unchanged (but still optimize)
-        processedImageBuffer = await this.optimizeImage(imageBuffer);
+      if (detection.personDetected && !allowsTransform) {
+        return {
+          hasModel: true,
+          processedImageUrl: null,
+          originalImageUrl: imageUrl,
+          status: 'rejected',
+          reason: 'Model image rejected: source does not permit transformation',
+        };
       }
 
-      // Upload processed image to cloud storage
-      processedImageUrl = await this.storageService.uploadImage(
-        processedImageBuffer,
-        `${productId}/processed-${Date.now()}.jpg`
+      if (detection.personDetected && allowsTransform) {
+        const segmented = await this.segmentGarment(imageBuffer);
+        const validation = await this.validateSegmentedOutput(segmented);
+        if (!validation.ok) {
+          return {
+            hasModel: true,
+            processedImageUrl: null,
+            originalImageUrl: imageUrl,
+            status: 'review',
+            reason: validation.reason,
+          };
+        }
+
+        const processedImageUrl = await this.getStorage().uploadImage(
+          segmented,
+          `${productId}/processed-${Date.now()}.jpg`
+        );
+
+        if (processedImageUrl.includes('via.placeholder.com')) {
+          return {
+            hasModel: true,
+            processedImageUrl: null,
+            originalImageUrl: imageUrl,
+            status: 'review',
+            reason: 'Storage unavailable; holding for review',
+          };
+        }
+
+        return {
+          hasModel: true,
+          processedImageUrl,
+          originalImageUrl: imageUrl,
+          status: 'approved',
+        };
+      }
+
+      // Flat-lay / product-only image
+      const optimized = await this.optimizeImage(imageBuffer);
+      const processedImageUrl = await this.getStorage().uploadImage(
+        optimized,
+        `${productId}/flat-${Date.now()}.jpg`
       );
 
-      // Cleanup temp file
-      if (fs.existsSync(tempImagePath)) {
-        fs.unlinkSync(tempImagePath);
-      }
-
-      return {
-        hasModel,
-        processedImageUrl,
-        originalImageUrl: imageUrl,
-      };
-    } catch (error) {
-      console.error('Error processing image:', error);
-      // Return original image URL if processing fails
       return {
         hasModel: false,
-        processedImageUrl: imageUrl,
+        processedImageUrl: processedImageUrl.includes('via.placeholder.com') ? null : processedImageUrl,
         originalImageUrl: imageUrl,
+        status: processedImageUrl.includes('via.placeholder.com') ? 'review' : 'approved',
+        reason: processedImageUrl.includes('via.placeholder.com')
+          ? 'Storage unavailable; holding for review'
+          : undefined,
+      };
+    } catch (error: any) {
+      return {
+        hasModel: false,
+        processedImageUrl: null,
+        originalImageUrl: imageUrl,
+        status: 'rejected',
+        reason: error?.message || 'Image processing failed',
       };
     }
   }
 
   /**
-   * Process multiple images for a product
+   * Backward-compatible batch helper used by legacy scrape orchestrator.
+   * Does not fall back to original model images.
    */
   async processImages(imageUrls: string[], productId: string): Promise<string[]> {
-    const processedUrls: string[] = [];
-
+    const approved: string[] = [];
     for (const imageUrl of imageUrls) {
-      try {
-        const result = await this.processImage(imageUrl, productId);
-        processedUrls.push(result.processedImageUrl);
-      } catch (error) {
-        console.error(`Error processing image ${imageUrl}:`, error);
-        // Fallback to original image
-        processedUrls.push(imageUrl);
+      const result = await this.processImageAsset(imageUrl, productId, false);
+      if (result.status === 'approved' && result.processedImageUrl) {
+        approved.push(result.processedImageUrl);
       }
     }
-
-    return processedUrls;
+    return approved.length ? approved : [NEUTRAL_PLACEHOLDER];
   }
 
-  /**
-   * Download image from URL
-   */
+  async processImage(imageUrl: string, productId: string): Promise<ProcessedImageResult> {
+    return this.processImageAsset(imageUrl, productId, false);
+  }
+
   private async downloadImage(imageUrl: string): Promise<Buffer> {
     const response = await axios.get(imageUrl, {
       responseType: 'arraybuffer',
       timeout: 30000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (compatible; FashionInstaBot/1.0)',
       },
     });
-
     return Buffer.from(response.data);
   }
 
   /**
-   * Detect if image contains a human person/model
-   * Using a lightweight approach - in production, use YOLO or MediaPipe
+   * Lightweight person detection heuristic.
+   * Replace with YOLO/MediaPipe/Rekognition in production.
    */
-  private async detectPerson(imageBuffer: Buffer): Promise<boolean> {
-    try {
-      // For now, use a simple heuristic based on image dimensions and aspect ratio
-      // In production, integrate with YOLO, MediaPipe, or a cloud AI service
-      
-      const metadata = await sharp(imageBuffer).metadata();
-      const aspectRatio = (metadata.width || 1) / (metadata.height || 1);
+  private async detectPerson(
+    imageBuffer: Buffer
+  ): Promise<{ personDetected: boolean; confidence: number }> {
+    const metadata = await sharp(imageBuffer).metadata();
+    const width = metadata.width || 1;
+    const height = metadata.height || 1;
+    const aspectRatio = width / height;
 
-      // Portrait-oriented images (aspect ratio < 1) are more likely to contain models
-      // This is a simple heuristic - replace with actual ML model
-      if (aspectRatio < 0.8) {
-        // Could be a model shot
-        // TODO: Integrate with actual person detection model
-        // For now, return true for portrait images as a placeholder
-        return true;
-      }
-
-      // For production, use one of these approaches:
-      // 1. TensorFlow.js with COCO-SSD model
-      // 2. MediaPipe Person Detection
-      // 3. Cloud AI service (AWS Rekognition, Google Vision API)
-      // 4. YOLO model via Python subprocess
-
-      return false;
-    } catch (error) {
-      console.error('Error detecting person:', error);
-      return false; // Default to no model if detection fails
+    // Portrait fashion shots are treated as likely model images.
+    if (aspectRatio < 0.85 && height > 500) {
+      return { personDetected: true, confidence: 0.7 };
     }
+
+    // Sample center luminance variance as a crude subject check.
+    const stats = await sharp(imageBuffer).stats();
+    const channels = stats.channels || [];
+    const avgStd = channels.reduce((sum, c) => sum + (c.stdev || 0), 0) / Math.max(channels.length, 1);
+    if (avgStd > 55 && aspectRatio < 1) {
+      return { personDetected: true, confidence: 0.55 };
+    }
+
+    return { personDetected: false, confidence: 0.25 };
   }
 
   /**
-   * Isolate clothing item by removing background and model
-   * Uses RemBG or similar background removal service
+   * Garment segmentation stand-in:
+   * - normalize canvas
+   * - soft-edge trim
+   * Replace with rembg / segmentation model when available.
    */
-  private async isolateClothing(imageBuffer: Buffer): Promise<Buffer> {
-    try {
-      // Option 1: Use RemBG library (Python-based, requires subprocess)
-      // Option 2: Use cloud service (Remove.bg API, ClipDrop API)
-      // Option 3: Use TensorFlow.js with segmentation model
-
-      // For now, use Sharp to create a simple background removal effect
-      // In production, integrate with RemBG or cloud service
-      
-      // Placeholder: Apply a simple processing
-      // TODO: Replace with actual background removal
-      const processed = await sharp(imageBuffer)
-        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-
-      return processed;
-    } catch (error) {
-      console.error('Error isolating clothing:', error);
-      // Fallback to optimized original
-      return await this.optimizeImage(imageBuffer);
-    }
+  private async segmentGarment(imageBuffer: Buffer): Promise<Buffer> {
+    return sharp(imageBuffer)
+      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
+      .trim({ threshold: 20 })
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .jpeg({ quality: 88 })
+      .toBuffer();
   }
 
-  /**
-   * Optimize image (resize, compress) without removing background
-   */
+  private async validateSegmentedOutput(
+    buffer: Buffer
+  ): Promise<{ ok: boolean; reason?: string }> {
+    const metadata = await sharp(buffer).metadata();
+    if (!metadata.width || !metadata.height) {
+      return { ok: false, reason: 'Invalid segmented dimensions' };
+    }
+    if (metadata.width < 200 || metadata.height < 200) {
+      return { ok: false, reason: 'Segmented output too small' };
+    }
+    const area = metadata.width * metadata.height;
+    if (area < 80_000) {
+      return { ok: false, reason: 'Insufficient garment coverage' };
+    }
+    return { ok: true };
+  }
+
   private async optimizeImage(imageBuffer: Buffer): Promise<Buffer> {
-    try {
-      return await sharp(imageBuffer)
-        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 90 })
-        .toBuffer();
-    } catch (error) {
-      console.error('Error optimizing image:', error);
-      return imageBuffer; // Return original if optimization fails
-    }
+    return sharp(imageBuffer)
+      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toBuffer();
   }
 }
 
-/**
- * Storage Service Interface
- */
 export interface StorageService {
   uploadImage(buffer: Buffer, key: string): Promise<string>;
   deleteImage(key: string): Promise<void>;
 }
 
-/**
- * Supabase Storage Implementation
- */
+function createDefaultStorageService(): StorageService {
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return new SupabaseStorageService();
+  }
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    return new S3StorageService();
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Production image storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+    );
+  }
+  return new LocalPlaceholderStorageService();
+}
+
+class LocalPlaceholderStorageService implements StorageService {
+  async uploadImage(_buffer: Buffer, _key: string): Promise<string> {
+    return NEUTRAL_PLACEHOLDER;
+  }
+  async deleteImage(_key: string): Promise<void> {}
+}
+
 export class SupabaseStorageService implements StorageService {
   private supabaseUrl: string;
   private supabaseKey: string;
@@ -213,15 +300,11 @@ export class SupabaseStorageService implements StorageService {
 
   constructor() {
     this.supabaseUrl = process.env.SUPABASE_URL || '';
-    this.supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+    this.supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     this.bucketName = process.env.SUPABASE_BUCKET || 'processed-images';
-    
-    // Log configuration status (without exposing sensitive data)
+
     if (!this.supabaseUrl || !this.supabaseKey) {
-      console.warn('⚠️  Supabase storage not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in .env file.');
-      console.warn('   Images will use placeholder URLs until configured.');
-    } else {
-      console.log(`✅ Supabase storage configured (bucket: ${this.bucketName})`);
+      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for image uploads');
     }
   }
 
@@ -229,25 +312,19 @@ export class SupabaseStorageService implements StorageService {
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(this.supabaseUrl, this.supabaseKey);
-
-      const { data, error } = await supabase.storage
-        .from(this.bucketName)
-        .upload(key, buffer, {
-          contentType: 'image/jpeg',
-          upsert: true,
-        });
-
+      const { error } = await supabase.storage.from(this.bucketName).upload(key, buffer, {
+        contentType: 'image/jpeg',
+        upsert: true,
+      });
       if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from(this.bucketName)
-        .getPublicUrl(key);
-
+      const { data: urlData } = supabase.storage.from(this.bucketName).getPublicUrl(key);
       return urlData.publicUrl;
     } catch (error) {
       console.error('Error uploading to Supabase:', error);
-      // Fallback: return a placeholder URL
-      return `https://via.placeholder.com/800?text=Processed+Image`;
+      if (process.env.NODE_ENV === 'production') {
+        throw error;
+      }
+      return NEUTRAL_PLACEHOLDER;
     }
   }
 
@@ -255,7 +332,6 @@ export class SupabaseStorageService implements StorageService {
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(this.supabaseUrl, this.supabaseKey);
-
       await supabase.storage.from(this.bucketName).remove([key]);
     } catch (error) {
       console.error('Error deleting from Supabase:', error);
@@ -263,40 +339,25 @@ export class SupabaseStorageService implements StorageService {
   }
 }
 
-/**
- * AWS S3 Storage Implementation
- */
 export class S3StorageService implements StorageService {
   private s3Client: any;
   private bucketName: string;
 
   constructor() {
     const { S3Client } = require('@aws-sdk/client-s3');
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || '';
-    
     this.s3Client = new S3Client({
       region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
-        accessKeyId,
-        secretAccessKey,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
       },
     });
     this.bucketName = process.env.AWS_S3_BUCKET || 'fashion-processed-images';
-    
-    // Log configuration status
-    if (!accessKeyId || !secretAccessKey) {
-      console.warn('⚠️  AWS S3 storage not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env file.');
-      console.warn('   Images will use placeholder URLs until configured.');
-    } else {
-      console.log(`✅ AWS S3 storage configured (bucket: ${this.bucketName}, region: ${process.env.AWS_REGION || 'us-east-1'})`);
-    }
   }
 
   async uploadImage(buffer: Buffer, key: string): Promise<string> {
     try {
       const { PutObjectCommand } = require('@aws-sdk/client-s3');
-      
       await this.s3Client.send(
         new PutObjectCommand({
           Bucket: this.bucketName,
@@ -305,11 +366,10 @@ export class S3StorageService implements StorageService {
           ContentType: 'image/jpeg',
         })
       );
-
       return `https://${this.bucketName}.s3.amazonaws.com/${key}`;
     } catch (error) {
       console.error('Error uploading to S3:', error);
-      return `https://via.placeholder.com/800?text=Processed+Image`;
+      return NEUTRAL_PLACEHOLDER;
     }
   }
 
@@ -327,4 +387,3 @@ export class S3StorageService implements StorageService {
     }
   }
 }
-

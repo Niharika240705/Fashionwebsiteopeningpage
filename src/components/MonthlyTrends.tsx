@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { useState } from 'react';
-import newspaperImage from 'figma:asset/5c11e6d90c23a297f8dcaca6caf3a4b238514587.png';
+import newspaperImage from '../assets/5c11e6d90c23a297f8dcaca6caf3a4b238514587.png';
 
 interface TrendBlock {
   id: number;

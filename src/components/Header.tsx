@@ -1,5 +1,5 @@
 import { Search, Menu, Bookmark, Mic, Camera, X, UserCircle } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 
 export function Header({ 
@@ -7,19 +7,27 @@ export function Header({
   onUfindClick, 
   onSavedClick,
   onImageSearchClick,
-  onLoginClick
+  onLoginClick,
+  onSearchSubmit,
 }: { 
   onMenuClick: () => void; 
   onUfindClick: () => void;
   onSavedClick: () => void;
   onImageSearchClick: () => void;
   onLoginClick: () => void;
+  onSearchSubmit?: (query: string) => void;
 }) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const { scrollY } = useScroll();
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const submitSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    onSearchSubmit?.(q);
+    setSearchExpanded(false);
+  };
   // Determine if header should be in scrolled state
   const [isScrolled, setIsScrolled] = useState(false);
   
@@ -77,6 +85,9 @@ export function Header({
           <Search size={16} className="sm:w-[18px] sm:h-[18px] text-black/40 shrink-0" />
           <input 
             type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
             placeholder="Search for winter wedding outfits, designers, brands…"
             className="flex-1 bg-transparent outline-none text-xs sm:text-sm"
             disabled={isScrolled}
@@ -91,7 +102,7 @@ export function Header({
               aria-label="Voice search"
               disabled={isScrolled}
             >
-              <Mic size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={1.5} className="text-black/60" />
+              <Mic size={16} className="sm:w-[18px] sm:h-[18px] text-black/60" strokeWidth={1.5} />
               {isVoiceActive && (
                 <motion.div
                   className="absolute inset-0 bg-black/10 rounded-full"
@@ -110,7 +121,7 @@ export function Header({
               aria-label="Image search"
               disabled={isScrolled}
             >
-              <Camera size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={1.5} className="text-black/60" />
+              <Camera size={16} className="sm:w-[18px] sm:h-[18px] text-black/60" strokeWidth={1.5} />
             </motion.button>
           </div>
         </motion.div>
@@ -189,6 +200,9 @@ export function Header({
               <Search size={20} className="sm:w-6 sm:h-6 text-black/40 shrink-0" />
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
                 placeholder="Search for winter wedding outfits, designers, brands…"
                 className="flex-1 bg-transparent outline-none text-base sm:text-lg"
                 autoFocus
@@ -202,7 +216,7 @@ export function Header({
                   className="p-1.5 sm:p-2 hover:bg-black/5 rounded-full transition-colors relative"
                   aria-label="Voice search"
                 >
-                  <Mic size={18} className="sm:w-5 sm:h-5" strokeWidth={1.5} className="text-black/60" />
+                  <Mic size={18} className="sm:w-5 sm:h-5 text-black/60" strokeWidth={1.5} />
                 </motion.button>
 
                 <motion.button
@@ -212,7 +226,7 @@ export function Header({
                   className="p-1.5 sm:p-2 hover:bg-black/5 rounded-full transition-colors"
                   aria-label="Image search"
                 >
-                  <Camera size={18} className="sm:w-5 sm:h-5" strokeWidth={1.5} className="text-black/60" />
+                  <Camera size={18} className="sm:w-5 sm:h-5 text-black/60" strokeWidth={1.5} />
                 </motion.button>
 
                 <motion.button

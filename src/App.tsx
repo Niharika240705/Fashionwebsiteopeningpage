@@ -1,187 +1,168 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Header } from './components/Header';
-import { HeroSection } from './components/HeroSection';
-import { PersonaLogo } from './components/PersonaLogo';
 import { SideMenu } from './components/SideMenu';
-import { MonthlyTrends } from './components/MonthlyTrends';
-import { InfluencerSuggests } from './components/InfluencerSuggests';
-import { FashionChronicle } from './components/FashionChronicle';
 import { SavedPanel } from './components/SavedPanel';
 import { ImageSearchModal } from './components/ImageSearchModal';
 import { UfindModal } from './components/Ufind/UfindModal';
 import { UfindQuestionnaire } from './components/Ufind/UfindQuestionnaire';
 import { UfindResult } from './components/Ufind/UfindResult';
 import { UfindFeed } from './components/Ufind/UfindFeed';
-import { Footer } from './components/Footer';
 import { LoginModal } from './components/LoginModal';
-import { TrendingProducts } from './components/TrendingProducts';
-import { trackOutfitSave } from './utils/analytics';
 import { useAuth } from './contexts/AuthContext';
+import { SavedItemsProvider, useSavedItems } from './contexts/SavedItemsContext';
 import { testBackendConnection } from './utils/api';
+import { HomePage } from './pages/HomePage';
+import { CategoryPage } from './pages/CategoryPage';
+import { SearchPage } from './pages/SearchPage';
+import { ProductPage } from './pages/ProductPage';
+import { SavedPage } from './pages/SavedPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
+import { getRedirectUrl } from './utils/api';
 
 type UfindView = 'closed' | 'modal' | 'questionnaire' | 'result' | 'feed';
 
-interface SavedItem {
-  id: number;
-  image: string;
-  title: string;
-  designer: string;
-  priceRange: 'Luxury' | 'Mid' | 'Affordable';
-}
-
-function AppContent() {
+function AppShell() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSavedOpen, setIsSavedOpen] = useState(false);
   const [isImageSearchOpen, setIsImageSearchOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [ufindView, setUfindView] = useState<UfindView>('closed');
-  const [selectedBodyShape, setSelectedBodyShape] = useState<string>('');
-  const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
-  const { setAuthTokens } = useAuth();
+  const [selectedBodyShape, setSelectedBodyShape] = useState('');
+  const { refreshSession } = useAuth();
+  const { savedProducts, toggleSave } = useSavedItems();
+  const navigate = useNavigate();
 
-  // Test backend connection on mount
   useEffect(() => {
     testBackendConnection().then((connected) => {
-      if (connected) {
-        console.log('✅ Backend connected successfully');
-      } else {
-        console.warn('⚠️ Backend connection failed. Make sure the server is running on port 5001');
-      }
+      if (connected) console.log('✅ Backend connected successfully');
+      else console.warn('⚠️ Backend connection failed. Make sure the server is running on port 5001');
     });
   }, []);
 
-  // Handle OAuth callback
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('accessToken');
-    const refreshToken = urlParams.get('refreshToken');
-    const error = urlParams.get('error');
-
-    if (accessToken && refreshToken) {
-      setAuthTokens(accessToken, refreshToken);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (error) {
-      console.error('OAuth error:', error);
-      // Clean URL
+    const auth = urlParams.get('auth');
+    if (auth === 'success') {
+      refreshSession().finally(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      });
+    } else if (auth === 'error') {
+      console.error('OAuth error');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [setAuthTokens]);
-
-  const handleUfindClick = () => {
-    setUfindView('modal');
-  };
-
-  const handleShapeSelect = (shape: string) => {
-    setSelectedBodyShape(shape);
-    setUfindView('result');
-  };
-
-  const handleStartQuestionnaire = () => {
-    setUfindView('questionnaire');
-  };
-
-  const handleQuestionnaireComplete = (bodyShape: string) => {
-    setSelectedBodyShape(bodyShape);
-    setUfindView('result');
-  };
-
-  const handleViewFeed = () => {
-    setUfindView('feed');
-  };
-
-  const handleCloseFeed = () => {
-    setUfindView('closed');
-    setSelectedBodyShape('');
-  };
-
-  const handleSaveOutfit = (outfit: any) => {
-    const newItem: SavedItem = {
-      id: outfit.id,
-      image: outfit.image,
-      title: outfit.description,
-      designer: outfit.designer,
-      priceRange: outfit.tag === 'Mid-Luxury' ? 'Mid' : outfit.tag as 'Luxury' | 'Affordable',
-    };
-    setSavedItems(prev => {
-      // Check if already saved
-      if (prev.some(item => item.id === newItem.id)) {
-        return prev;
-      }
-      // Track outfit save
-      trackOutfitSave(outfit.id, outfit.designer);
-      return [...prev, newItem];
-    });
-  };
-
-  const handleRemoveSaved = (id: number) => {
-    setSavedItems(prev => prev.filter(item => item.id !== id));
-  };
+  }, [refreshSession]);
 
   return (
     <div className="min-h-screen bg-white">
-      <Header 
-        onMenuClick={() => setIsMenuOpen(true)} 
-        onUfindClick={handleUfindClick}
-        onSavedClick={() => setIsSavedOpen(true)}
+      <Header
+        onMenuClick={() => setIsMenuOpen(true)}
+        onUfindClick={() => setUfindView('modal')}
+        onSavedClick={() => {
+          setIsSavedOpen(true);
+          navigate('/saved');
+        }}
         onImageSearchClick={() => setIsImageSearchOpen(true)}
         onLoginClick={() => setIsLoginOpen(true)}
+        onSearchSubmit={(q) => navigate(`/search?q=${encodeURIComponent(q)}`)}
       />
-      <SideMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-      <SavedPanel 
-        isOpen={isSavedOpen} 
+      <SideMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onNavigate={(path) => {
+          setIsMenuOpen(false);
+          navigate(path);
+        }}
+      />
+      <SavedPanel
+        isOpen={isSavedOpen}
         onClose={() => setIsSavedOpen(false)}
-        savedItems={savedItems}
-        onRemove={handleRemoveSaved}
+        savedItems={savedProducts.map((p) => ({
+          id: p.id as unknown as number,
+          image: p.images?.[0] || '',
+          title: p.name,
+          designer: p.brand,
+          priceRange: 'Mid' as const,
+          offerId: p.offerId,
+        }))}
+        onRemove={(id) => {
+          const product = savedProducts.find((p) => String(p.id) === String(id));
+          if (product) toggleSave(product);
+        }}
+        onOpenItem={(item: any) => {
+          if (item.offerId) {
+            window.open(getRedirectUrl(item.offerId, 'saved_panel'), '_blank', 'noopener,noreferrer');
+          }
+        }}
       />
-      <ImageSearchModal
-        isOpen={isImageSearchOpen}
-        onClose={() => setIsImageSearchOpen(false)}
-      />
-      <LoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
-      />
-      
-      {/* Ufind Components */}
+      <ImageSearchModal isOpen={isImageSearchOpen} onClose={() => setIsImageSearchOpen(false)} />
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+
       <UfindModal
         isOpen={ufindView === 'modal'}
         onClose={() => setUfindView('closed')}
-        onShapeSelect={handleShapeSelect}
-        onStartQuestionnaire={handleStartQuestionnaire}
+        onShapeSelect={(shape) => {
+          setSelectedBodyShape(shape);
+          setUfindView('result');
+        }}
+        onStartQuestionnaire={() => setUfindView('questionnaire')}
       />
       <UfindQuestionnaire
         isOpen={ufindView === 'questionnaire'}
         onClose={() => setUfindView('closed')}
-        onComplete={handleQuestionnaireComplete}
+        onComplete={(bodyShape) => {
+          setSelectedBodyShape(bodyShape);
+          setUfindView('result');
+        }}
       />
       <UfindResult
         isOpen={ufindView === 'result'}
         bodyShape={selectedBodyShape}
-        onViewFeed={handleViewFeed}
+        onViewFeed={() => setUfindView('feed')}
       />
       <UfindFeed
         isOpen={ufindView === 'feed'}
         bodyShape={selectedBodyShape}
-        onClose={handleCloseFeed}
+        onClose={() => {
+          setUfindView('closed');
+          setSelectedBodyShape('');
+        }}
       />
 
-      {/* Main Content - Hidden when feed is open */}
       {ufindView !== 'feed' && (
-        <>
-          <PersonaLogo />
-          <HeroSection />
-          <MonthlyTrends />
-          <TrendingProducts />
-          <InfluencerSuggests />
-          <FashionChronicle />
-          <Footer />
-        </>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/women/:category" element={<CategoryPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/products/:id" element={<ProductPage />} />
+          <Route path="/saved" element={<SavedPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/men/*" element={<ComingSoon audience="Men" />} />
+          <Route path="/kids/*" element={<ComingSoon audience="Kids" />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       )}
     </div>
   );
 }
 
+function ComingSoon({ audience }: { audience: string }) {
+  return (
+    <div className="max-w-[1600px] mx-auto px-8 py-24 text-center">
+      <h1 className="text-3xl mb-3">{audience}</h1>
+      <p className="text-black/50">Coming soon after the women’s catalog MVP is stable.</p>
+    </div>
+  );
+}
+
 export default function App() {
-  return <AppContent />;
+  return (
+    <BrowserRouter>
+      <SavedItemsProvider>
+        <AppShell />
+      </SavedItemsProvider>
+    </BrowserRouter>
+  );
 }

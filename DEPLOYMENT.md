@@ -1,254 +1,118 @@
-# Deployment Guide
+# Production Deployment
 
-This guide will help you deploy your fashion website to production.
+Stack: **Vercel** (frontend) + **Render** (backend) + **MongoDB Atlas** + **Supabase Storage**.
 
-## Quick Start
+Repository: `https://github.com/Niharika240705/Fashionwebsiteopeningpage.git`
 
-1. **Build the project**:
-   ```bash
-   npm run build
-   ```
+## 1. MongoDB Atlas
 
-2. **Deploy the `dist` folder** to your hosting provider
+1. Create a free/shared cluster.
+2. Create a database user and allow your Render outbound IPs (or `0.0.0.0/0` for MVP).
+3. Copy the connection string into Render as `MONGODB_URI`.
 
-3. **Update configuration files** with your actual domain
+## 2. Supabase Storage
 
-## Platform-Specific Guides
+1. Create a project and a public bucket named `processed-images` (or set `SUPABASE_BUCKET`).
+2. Use the **service role** key on Render only (`SUPABASE_SERVICE_ROLE_KEY`).
+3. Keep the anon key out of the backend upload path.
+4. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on Render.
 
-### Vercel (Recommended)
+## 3. Render backend
 
-1. **Install Vercel CLI** (optional):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Deploy**:
-   ```bash
-   vercel
-   ```
-   Or connect your GitHub repository on [vercel.com](https://vercel.com)
-
-3. **Configure**:
-   - Vercel automatically detects Vite projects
-   - Add environment variables in Vercel dashboard
-   - Custom domain can be added in project settings
-
-### Netlify
-
-1. **Option 1: Drag and Drop**
-   - Build: `npm run build`
-   - Drag the `dist` folder to [app.netlify.com/drop](https://app.netlify.com/drop)
-
-2. **Option 2: Git Integration**
-   - Connect your GitHub repository
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-
-3. **Configure**:
-   - Add environment variables in Site settings
-   - Add custom domain in Domain settings
-
-### AWS S3 + CloudFront
-
-1. **Create S3 Bucket**:
-   ```bash
-   aws s3 mb s3://your-bucket-name
-   ```
-
-2. **Upload files**:
-   ```bash
-   aws s3 sync dist/ s3://your-bucket-name --delete
-   ```
-
-3. **Configure S3 for static hosting**:
-   - Enable static website hosting
-   - Set index document to `index.html`
-   - Set error document to `index.html` (for SPA routing)
-
-4. **Create CloudFront distribution**:
-   - Origin: Your S3 bucket
-   - Default root object: `index.html`
-   - Enable HTTPS
-
-### GitHub Pages
-
-1. **Install gh-pages**:
-   ```bash
-   npm install --save-dev gh-pages
-   ```
-
-2. **Add script to package.json**:
-   ```json
-   "scripts": {
-     "deploy": "npm run build && gh-pages -d dist"
-   }
-   ```
-
-3. **Deploy**:
-   ```bash
-   npm run deploy
-   ```
-
-4. **Configure**:
-   - Go to repository Settings > Pages
-   - Select source branch: `gh-pages`
-   - Add custom domain if needed
-
-## Pre-Deployment Checklist
-
-### 1. Update Configuration Files
-
-- [ ] **index.html**: Update meta tags with your domain
-  - Replace `https://yourdomain.com` with your actual domain
-  - Update Open Graph image URL
-  - Update canonical URL
-
-- [ ] **robots.txt**: Update sitemap URL
-  ```txt
-  Sitemap: https://yourdomain.com/sitemap.xml
-  ```
-
-- [ ] **sitemap.xml**: Update all URLs
-  - Replace `https://yourdomain.com` with your actual domain
-  - Update `lastmod` dates
-
-### 2. Environment Variables
-
-Create `.env.production` or configure in your hosting platform:
-
-```env
-VITE_SITE_URL=https://yourdomain.com
-VITE_SITE_NAME=Fashion Trends
-VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX
-```
-
-### 3. Test Production Build
+Option A — Blueprint:
 
 ```bash
-npm run build
-npm run preview
+# From the Render dashboard: New > Blueprint > connect this repo
+# Uses render.yaml
 ```
 
-Test thoroughly:
-- [ ] All pages load correctly
-- [ ] External links work
-- [ ] Images load properly
-- [ ] Responsive design works
-- [ ] No console errors
+Option B — Manual web service:
 
-### 4. Performance Check
+- Root directory: `server`
+- Build: `npm ci && npm run build`
+- Start: `npm start`
+- Health check: `/api/health`
+- Node: 20+
 
-- [ ] Run Lighthouse audit
-- [ ] Check bundle sizes
-- [ ] Verify images are optimized
-- [ ] Test loading speed
+Required env vars:
 
-### 5. SEO Verification
+| Key | Notes |
+|-----|-------|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | Atlas URI |
+| `JWT_SECRET` | 32+ random chars |
+| `REFRESH_TOKEN_SECRET` | 32+ random chars |
+| `SESSION_SECRET` | 32+ random chars |
+| `FRONTEND_URL` | Primary Vercel URL |
+| `FRONTEND_URLS` | Optional comma-separated preview URLs |
+| `BACKEND_URL` | Public Render URL |
+| `ADMIN_EMAILS` | Comma-separated emails promoted to admin |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Image uploads |
+| `AUTO_INGEST_DEMO` | `false` in production |
+| `ENABLE_SCHEDULED_SCRAPING` | Prefer `false`; use Render Cron |
+| `ENABLE_MYNTRA_SCRAPE` | Keep `false` until permitted + worker |
 
-- [ ] Google Search Console setup
-- [ ] Submit sitemap
-- [ ] Verify meta tags
-- [ ] Test social sharing previews
+Optional Google OAuth:
 
-### 6. Analytics Setup
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_CALLBACK_URL=https://<render-host>/api/auth/google/callback`
+- Register that callback in Google Cloud Console.
 
-- [ ] Google Analytics configured
-- [ ] Verify tracking works
-- [ ] Set up conversion goals
-- [ ] Configure event tracking
+After deploy, open `https://<render-host>/api/health` — expect `{ "status": "ok", "mongo": true }`.
 
-## Post-Deployment
+Seed demo catalog (admin cookie/session or temporary script):
 
-### 1. Monitor
-
-- Set up error monitoring (Sentry, LogRocket)
-- Monitor analytics
-- Check server logs
-- Monitor performance
-
-### 2. SSL Certificate
-
-- Ensure HTTPS is enabled
-- Verify certificate is valid
-- Set up automatic renewal
-
-### 3. CDN Configuration
-
-- Configure caching headers
-- Set up CDN rules
-- Optimize asset delivery
-
-### 4. Backup Strategy
-
-- Regular backups of configuration
-- Version control for code
-- Database backups (if applicable)
-
-## Troubleshooting
-
-### Build Fails
-
-- Check Node.js version (18+)
-- Clear `node_modules` and reinstall
-- Check for TypeScript errors
-- Verify all dependencies are installed
-
-### Build Succeeds but Site Doesn't Load
-
-- Check hosting configuration
-- Verify `dist` folder is uploaded correctly
-- Check for routing issues (SPA configuration)
-- Verify index.html is in root
-
-### Images Not Loading
-
-- Check image paths (relative vs absolute)
-- Verify images are in `dist` folder
-- Check CORS settings
-- Verify image URLs are correct
-
-### External Links Not Working
-
-- Verify URLs are correct
-- Check for HTTPS issues
-- Verify `rel="noopener noreferrer"` is present
-- Test links manually
-
-## Continuous Deployment
-
-### GitHub Actions Example
-
-Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy
-
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - run: npm ci
-      - run: npm run build
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
+```bash
+# From a trusted machine with production MONGODB_URI
+cd server
+AUTO_INGEST_DEMO=false npm run ingest:demo
 ```
 
-## Support
+Or call `POST /api/admin/ingestion/ingest/demo-affiliate` while logged in as an admin email.
 
-For deployment issues, check:
-- Hosting provider documentation
-- Vite deployment guide
-- React deployment guide
+## 4. Vercel frontend
 
+1. Import the GitHub repo into Vercel.
+2. Framework: Vite
+3. Install: `npm ci`
+4. Build: `npm run build`
+5. Output: `dist`
+6. `vercel.json` already rewrites SPA routes to `/index.html`.
+
+Environment variables:
+
+| Key | Value |
+|-----|-------|
+| `VITE_API_URL` | `https://<render-host>/api` |
+| `VITE_SITE_URL` | `https://<your-vercel-domain>` |
+
+Redeploy after setting env vars (Vite bakes them at build time).
+
+## 5. Connect frontend ↔ backend
+
+1. Set Render `FRONTEND_URL` / `FRONTEND_URLS` to your Vercel domain(s).
+2. Auth uses httpOnly cookies with `SameSite=None; Secure` in production, so HTTPS on both sides is required.
+3. Browser calls use `credentials: 'include'`.
+
+## 6. Admin access
+
+Set `ADMIN_EMAILS=you@example.com` on Render. That email is promoted to `role=admin` on next login/register. Use it for:
+
+- `GET /api/monitoring/catalog`
+- `POST /api/admin/ingestion/*`
+
+## 7. Cron sync
+
+`render.yaml` defines an 8-hour cron job. Prefer a secured admin token flow or disable cron until you wire `CRON_ADMIN_TOKEN`. Keep `ENABLE_SCHEDULED_SCRAPING=false` on the web dyno for multi-instance safety.
+
+## 8. Post-deploy checklist
+
+- [ ] `/api/health` returns mongo ready
+- [ ] Frontend loads home + `/women/dresses`
+- [ ] Register/login sets cookies (Application → Cookies)
+- [ ] Google OAuth (if enabled) returns to `/?auth=success` without tokens in the URL
+- [ ] Product CTA opens tracked `/api/r/:offerId` redirect
+- [ ] `/privacy` and `/terms` render
+- [ ] Monitoring endpoint requires admin auth
+- [ ] Update `robots.txt` / `sitemap.xml` / OG URLs to your real custom domain when ready
