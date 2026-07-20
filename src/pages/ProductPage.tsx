@@ -7,6 +7,7 @@ import { useSavedItems } from '../contexts/SavedItemsContext';
 import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../utils/analytics';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
+import { priceToBudgetTier } from '../utils/budget';
 
 interface ProductPageProps {
   onRequireAuth?: () => void;
@@ -47,14 +48,27 @@ export function ProductPage({ onRequireAuth }: ProductPageProps) {
     (product.category || '').toLowerCase()
   );
 
+  const canBuy = Boolean(product.offerId || product.productUrl);
+  const budgetTier = priceToBudgetTier(product.price);
+  const hasDiscount = Boolean(product.originalPrice && product.originalPrice > product.price);
+  const discountPercentage =
+    product.discountPercentage ??
+    (hasDiscount
+      ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
+      : undefined);
+
   const handleBuy = () => {
-    if (!product.offerId) return;
+    if (!canBuy) return;
     trackEvent('affiliate_click', {
       productId: product.id,
       offerId: product.offerId,
       placement: 'product_detail',
+      direct: !product.offerId,
     });
-    window.open(getRedirectUrl(product.offerId, 'product_detail'), '_blank', 'noopener,noreferrer');
+    const url = product.offerId
+      ? getRedirectUrl(product.offerId, 'product_detail')
+      : product.productUrl!;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleTryOn = () => {
@@ -99,14 +113,25 @@ export function ProductPage({ onRequireAuth }: ProductPageProps) {
         <div className="space-y-5">
           <p className="text-xs tracking-[0.2em] uppercase text-black/50">{product.brand}</p>
           <h1 className="text-3xl md:text-4xl">{product.name}</h1>
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-baseline gap-3 flex-wrap">
             <span className="text-2xl font-semibold">₹{product.price.toLocaleString()}</span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            {hasDiscount && (
               <span className="text-black/40 line-through">
-                ₹{product.originalPrice.toLocaleString()}
+                ₹{product.originalPrice!.toLocaleString()}
               </span>
             )}
+            {discountPercentage ? (
+              <span className="text-sm font-medium text-rose-600">{discountPercentage}% off</span>
+            ) : null}
           </div>
+          {budgetTier && (
+            <span
+              className={`inline-flex items-center gap-1.5 text-xs tracking-[0.15em] uppercase ${budgetTier.colorClassName}`}
+            >
+              <span className={`w-2 h-2 rounded-full ${budgetTier.dotClassName}`} />
+              {budgetTier.label}
+            </span>
+          )}
 
           <p className="text-sm text-black/60">
             {product.attributionText || `Sold by ${product.sellerName || 'partner retailer'}`}
@@ -137,7 +162,7 @@ export function ProductPage({ onRequireAuth }: ProductPageProps) {
             <button
               type="button"
               onClick={handleBuy}
-              disabled={!product.offerId}
+              disabled={!canBuy}
               className="inline-flex items-center gap-2 border border-black px-6 py-3 text-xs tracking-widest uppercase disabled:opacity-40"
             >
               Go to {product.sellerName || 'retailer'}

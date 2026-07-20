@@ -112,6 +112,12 @@ npm start
 - `GET /api/user/profile` - Get user profile (requires auth)
 - `PUT /api/user/profile` - Update user profile (requires auth)
 
+### Virtual Try-On
+
+- `POST /api/try-on` - Photorealistic AI virtual try-on (requires auth, rate limited)
+
+See [Virtual Try-On setup](#virtual-try-on-setup) below for provider configuration.
+
 ## Request/Response Examples
 
 ### Register
@@ -142,6 +148,51 @@ Content-Type: application/json
 GET /api/auth/me
 Authorization: Bearer <access_token>
 ```
+
+## Virtual Try-On Setup
+
+`POST /api/try-on` powers the photorealistic virtual try-on studio (`VirtualTryOnModal`). It
+forwards a full-body photo + garment image to a generative AI provider server-side, so provider
+API keys never reach the browser.
+
+**Request body:**
+
+```json
+{
+  "productId": "abc123",
+  "garmentImageUrl": "https://cdn.example.com/garment.jpg",
+  "humanImageBase64": "data:image/jpeg;base64,...",
+  "category": "dresses",
+  "sizeHint": "M"
+}
+```
+
+`humanImageUrl` may be used instead of `humanImageBase64`. `category` is mapped internally to
+the provider's `upper_body` / `lower_body` / `dresses` flag.
+
+**Configure a provider (pick one):**
+
+1. **Replicate (recommended)** — [cuuupid/idm-vton](https://replicate.com/cuuupid/idm-vton)
+   - Create an API token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
+   - Set `REPLICATE_API_TOKEN` in `server/.env`
+   - Optionally pin `REPLICATE_VTON_MODEL_VERSION` to a specific model version id if the default
+     becomes stale (Replicate versions are content-addressed and change when the model owner
+     publishes updates)
+2. **fal.ai** — [fal-ai/idm-vton](https://fal.ai/models/fal-ai/idm-vton)
+   - Create a key at [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys)
+   - Set `FAL_KEY` in `server/.env` (and `TRY_ON_PROVIDER=fal` if `REPLICATE_API_TOKEN` is also set)
+
+**Local UI testing without a key:** set `TRY_ON_MOCK=true` in `server/.env`. This returns a
+simple local image composite labeled **"Demo mode"** in both the API response (`mode: "demo"`)
+and the frontend UI — it is never presented as a photorealistic AI result. Never enable
+`TRY_ON_MOCK` in production.
+
+**Honesty note on live camera vs. photorealistic result:** the in-modal camera view uses
+MediaPipe Pose Landmarker + Selfie Segmentation, running entirely in the browser, to draw a live
+skeleton/highlight overlay and tell the user when their full body is framed. That is real-time
+guidance only. The actual garment render is a single generative AI call made after the user taps
+"Capture" or uploads a photo — there is no live/streaming garment draping, because no production
+video-VTON API was available to wire in. This is stated in the modal's UI copy as well.
 
 ## Security Features
 

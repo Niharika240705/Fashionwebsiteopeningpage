@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BudgetFilter } from '../components/products/BudgetFilter';
 import { ProductFilters } from '../components/products/ProductFilters';
 import { ProductGrid } from '../components/products/ProductGrid';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
@@ -12,6 +13,7 @@ import {
   labelForAudience,
   labelForCategory,
 } from '../utils/taxonomy';
+import { useBudgetPreference } from '../contexts/BudgetPreferenceContext';
 
 interface CategoryPageProps {
   onRequireAuth?: () => void;
@@ -27,6 +29,8 @@ export function CategoryPage({ onRequireAuth }: CategoryPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tryOnProduct, setTryOnProduct] = useState<ProductSummary | null>(null);
+  const { priceRange } = useBudgetPreference();
+  const didSyncBudget = useRef(false);
 
   const audienceValid = isAudience(audienceParam);
   const audience = audienceValid ? audienceParam : 'women';
@@ -71,10 +75,6 @@ export function CategoryPage({ onRequireAuth }: CategoryPageProps) {
     };
   }, [query, audience, category, audienceValid]);
 
-  if (!audienceValid) {
-    return <Navigate to="/women/dresses" replace />;
-  }
-
   const updateQuery = (next: Partial<ProductQuery>) => {
     const params = new URLSearchParams(searchParams);
     Object.entries(next).forEach(([key, value]) => {
@@ -89,9 +89,28 @@ export function CategoryPage({ onRequireAuth }: CategoryPageProps) {
     setSearchParams(params);
   };
 
+  // On first load, if the URL already carries a shareable minPrice/maxPrice
+  // (e.g. a shared link), leave it as-is. Otherwise, apply the persisted
+  // budget preference from context so it's honored even when arriving here
+  // without ever touching the filter on this page (e.g. via a Monthly
+  // Trends "shop" link on the homepage).
+  useEffect(() => {
+    if (didSyncBudget.current) return;
+    didSyncBudget.current = true;
+    const hasUrlPrice = searchParams.has('minPrice') || searchParams.has('maxPrice');
+    if (!hasUrlPrice && (priceRange.minPrice !== undefined || priceRange.maxPrice !== undefined)) {
+      updateQuery({ minPrice: priceRange.minPrice, maxPrice: priceRange.maxPrice });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!audienceValid) {
+    return <Navigate to="/women/dresses" replace />;
+  }
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-14">
-      <div className="mb-8 flex items-end justify-between gap-4">
+      <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs tracking-[0.25em] uppercase text-black/50 mb-2">
             {labelForAudience(audience)}
@@ -106,6 +125,12 @@ export function CategoryPage({ onRequireAuth }: CategoryPageProps) {
         >
           Search
         </button>
+      </div>
+
+      <div className="mb-8 pb-6 border-b border-black/10">
+        <BudgetFilter
+          onChange={({ minPrice, maxPrice }) => updateQuery({ minPrice, maxPrice, page: 1 })}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8">

@@ -2,12 +2,10 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.model';
 import { generateAccessToken, generateRefreshToken } from '../utils/jwt.utils';
+import { isGoogleOAuthConfigured } from '../utils/oauth-config';
 
 // Google OAuth Strategy - Only initialize if credentials are provided
-if (process.env.GOOGLE_CLIENT_ID && 
-    process.env.GOOGLE_CLIENT_SECRET && 
-    process.env.GOOGLE_CLIENT_ID !== 'your-google-client-id-here' &&
-    process.env.GOOGLE_CLIENT_SECRET !== 'your-google-client-secret-here') {
+if (isGoogleOAuthConfigured()) {
   const callbackURL =
     process.env.GOOGLE_CALLBACK_URL ||
     `${process.env.BACKEND_URL || 'http://localhost:5001'}/api/auth/google/callback`;
@@ -15,11 +13,11 @@ if (process.env.GOOGLE_CLIENT_ID &&
   passport.use(
     new GoogleStrategy(
       {
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        clientID: process.env.GOOGLE_CLIENT_ID as string,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
         callbackURL,
       },
-    async (accessToken, refreshToken, profile, done) => {
+    async (accessToken: string, refreshToken: string, profile: any, done: any) => {
       try {
         // Check if user exists
         let user = await User.findOne({ email: profile.emails?.[0]?.value });

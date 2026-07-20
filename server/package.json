@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "scrape:myntra": "tsx src/scripts/scrape-myntra-comprehensive.ts",
     "ingest:demo": "tsx src/scripts/seed-demo-catalog.ts",
-    "ingest:retailers": "tsx src/scripts/ingest-retailers.ts"
+    "ingest:retailers": "tsx src/scripts/ingest-retailers.ts",
+    "sync:python": "tsx src/scripts/sync-from-python.ts"
   },
   "dependencies": {
     "express": "^4.18.2",

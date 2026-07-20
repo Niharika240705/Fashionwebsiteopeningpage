@@ -10,10 +10,16 @@ interface User {
   role?: 'user' | 'admin';
 }
 
+interface AuthProviders {
+  google: boolean;
+  apple: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  providers: AuthProviders;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   loginWithGoogle: () => void;
@@ -37,10 +43,26 @@ async function parseError(response: Response, fallback: string): Promise<string>
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [providers, setProviders] = useState<AuthProviders>({ google: false, apple: false });
 
   useEffect(() => {
     checkAuth();
+    checkProviders();
   }, []);
+
+  const checkProviders = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/providers`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProviders({ google: !!data.google, apple: !!data.apple });
+      }
+    } catch (error) {
+      console.error('Failed to check auth providers:', error);
+    }
+  };
 
   const refreshSession = async (): Promise<boolean> => {
     try {
@@ -137,6 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithGoogle = () => {
+    if (!providers.google) {
+      throw new Error(
+        'Google Sign-In is not configured yet. Ask the site admin to set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in server/.env.'
+      );
+    }
     window.location.href = `${API_URL}/auth/google`;
   };
 
@@ -163,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        providers,
         login,
         register,
         loginWithGoogle,

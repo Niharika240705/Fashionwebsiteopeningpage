@@ -38,16 +38,16 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'women',
-    category: 'bottoms',
+    category: 'jeans',
     url: 'https://www.myntra.com/women-jeans',
-    label: 'Bottoms',
+    label: 'Jeans',
   },
   {
     retailer: 'myntra',
     audience: 'women',
-    category: 'ethnic-wear',
+    category: 'kurtas',
     url: 'https://www.myntra.com/lehenga-choli',
-    label: 'Ethnic / Lehenga',
+    label: 'Kurtas',
   },
   {
     retailer: 'myntra',
@@ -59,14 +59,14 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'women',
-    category: 'bags',
+    category: 'accessories',
     url: 'https://www.myntra.com/handbags',
     label: 'Bags',
   },
   {
     retailer: 'myntra',
     audience: 'women',
-    category: 'jewellery',
+    category: 'accessories',
     url: 'https://www.myntra.com/jewellery',
     label: 'Jewellery',
   },
@@ -96,16 +96,16 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'men',
-    category: 'tops',
+    category: 't-shirts',
     url: 'https://www.myntra.com/men-tshirts',
-    label: 'Tops',
+    label: 'T-Shirts',
   },
   {
     retailer: 'myntra',
     audience: 'men',
-    category: 'bottoms',
+    category: 'jeans',
     url: 'https://www.myntra.com/men-jeans',
-    label: 'Bottoms',
+    label: 'Jeans',
   },
   {
     retailer: 'myntra',
@@ -124,7 +124,7 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'men',
-    category: 'bags',
+    category: 'accessories',
     url: 'https://www.myntra.com/backpacks',
     label: 'Bags',
   },
@@ -138,7 +138,7 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'men',
-    category: 'jewellery',
+    category: 'accessories',
     url: 'https://www.myntra.com/men-jewellery',
     label: 'Jewellery',
   },
@@ -154,21 +154,21 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'myntra',
     audience: 'kids',
-    category: 'tops',
+    category: 't-shirts',
     url: 'https://www.myntra.com/boys-tshirts',
-    label: 'Tops',
+    label: 'T-Shirts',
   },
   {
     retailer: 'myntra',
     audience: 'kids',
-    category: 'sets',
+    category: 'tops',
     url: 'https://www.myntra.com/kids-clothing-sets',
     label: 'Sets',
   },
   {
     retailer: 'myntra',
     audience: 'kids',
-    category: 'ethnic-wear',
+    category: 'party-wear',
     url: 'https://www.myntra.com/kids-ethnic-wear',
     label: 'Ethnic Wear',
   },
@@ -205,9 +205,9 @@ export const RETAILER_LISTINGS: RetailerListing[] = [
   {
     retailer: 'hm',
     audience: 'kids',
-    category: 'tops',
+    category: 't-shirts',
     url: 'https://www2.hm.com/en_in/kids/boys/clothing/t-shirts.html',
-    label: 'H&M Kids Tops',
+    label: 'H&M Kids T-Shirts',
   },
 
   // Women — Zara (IN)

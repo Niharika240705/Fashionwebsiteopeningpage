@@ -13,6 +13,8 @@ import productRoutes from './routes/product.routes';
 import redirectRoutes from './routes/redirect.routes';
 import adminIngestionRoutes from './routes/admin-ingestion.routes';
 import monitoringRoutes from './routes/monitoring.routes';
+import tryOnRoutes from './routes/try-on.routes';
+import assistantRoutes from './routes/assistant.routes';
 import './config/passport.config';
 import { IngestionOrchestratorService } from './services/ingestion/ingestion-orchestrator.service';
 import { connectMongoDB, isMongoReady } from './config/database';
@@ -107,6 +109,10 @@ app.use('/api', globalLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/r', redirectLimiter);
 
+// Try-on requests carry a base64 full-body photo, so this route gets a larger JSON body limit
+// than the rest of the API. Mounted before the global parser so it only applies to this path
+// (body-parser skips re-parsing a request whose body is already parsed).
+app.use('/api/try-on', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -139,6 +145,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/r', redirectRoutes);
+app.use('/api/try-on', tryOnRoutes);
+app.use('/api/assistant', assistantRoutes);
 app.use('/api/admin/ingestion', adminIngestionRoutes);
 app.use('/api/monitoring', monitoringRoutes);
 

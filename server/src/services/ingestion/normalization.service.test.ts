@@ -7,17 +7,23 @@ describe('taxonomy', () => {
     expect(normalizeCategory('Dress')).toBe('dresses');
     expect(normalizeCategory('gown')).toBe('wedding-gowns');
     expect(normalizeCategory('bridal')).toBe('wedding-gowns');
-    expect(normalizeCategory('saree')).toBe('ethnic-wear');
+    expect(normalizeCategory('saree')).toBe('sarees');
     expect(normalizeCategory('heels')).toBe('footwear');
-    expect(normalizeCategory('jewellery')).toBe('jewellery');
+    expect(normalizeCategory('jewellery')).toBe('accessories');
+    expect(normalizeCategory('T-Shirt')).toBe('t-shirts');
+    expect(normalizeCategory('Ethnic Wear')).toBe('ethnic-wear');
+    expect(normalizeCategory('Co-ords')).toBe('co-ords');
     expect(isMvpCategory('women', 'wedding-gowns')).toBe(true);
   });
 
   it('accepts audience MVP categories', () => {
     expect(isWomenMvpCategory('tops')).toBe(true);
     expect(isMvpCategory('men', 'shirts')).toBe(true);
-    expect(isMvpCategory('kids', 'sets')).toBe(true);
+    expect(isMvpCategory('men', 'ethnic-wear')).toBe(true);
+    expect(isMvpCategory('women', 'sarees')).toBe(true);
+    expect(isMvpCategory('kids', 'school-wear')).toBe(true);
     expect(isMvpCategory('women', 'unknown-thing')).toBe(false);
+    expect(isMvpCategory('women', 'ethnic-wear')).toBe(false); // women use Kurtas/Sarees instead
   });
 });
 

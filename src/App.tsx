@@ -9,8 +9,10 @@ import { UfindQuestionnaire } from './components/Ufind/UfindQuestionnaire';
 import { UfindResult } from './components/Ufind/UfindResult';
 import { UfindFeed } from './components/Ufind/UfindFeed';
 import { LoginModal } from './components/LoginModal';
+import { PersonaAI } from './components/assistant/PersonaAI';
 import { useAuth } from './contexts/AuthContext';
 import { SavedItemsProvider, useSavedItems } from './contexts/SavedItemsContext';
+import { BudgetPreferenceProvider } from './contexts/BudgetPreferenceContext';
 import { testBackendConnection, getRedirectUrl } from './utils/api';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
@@ -167,6 +169,9 @@ function AppShell() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}
+
+      {/* Persona AI floating assistant — persists across every route */}
+      <PersonaAI />
     </div>
   );
 }
@@ -174,9 +179,11 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <SavedItemsProvider>
-        <AppShell />
-      </SavedItemsProvider>
+      <BudgetPreferenceProvider>
+        <SavedItemsProvider>
+          <AppShell />
+        </SavedItemsProvider>
+      </BudgetPreferenceProvider>
     </BrowserRouter>
   );
 }

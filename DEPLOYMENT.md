@@ -51,6 +51,8 @@ Required env vars:
 | `AUTO_INGEST_DEMO` | `false` in production |
 | `ENABLE_SCHEDULED_SCRAPING` | Prefer `false`; use Render Cron |
 | `ENABLE_MYNTRA_SCRAPE` | Keep `false` until permitted + worker |
+| `REPLICATE_API_TOKEN` / `FAL_KEY` | Virtual try-on provider (set one; see `server/README.md`) |
+| `TRY_ON_MOCK` | Keep `false`/unset in production — demo-only local composite |
 
 Optional Google OAuth:
 

@@ -17,7 +17,7 @@ export function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModa
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login, register, loginWithGoogle, loginWithApple } = useAuth();
+  const { login, register, loginWithGoogle, loginWithApple, providers } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +48,12 @@ export function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModa
   };
 
   const handleGoogleLogin = () => {
-    loginWithGoogle();
+    try {
+      setError('');
+      loginWithGoogle();
+    } catch (err: any) {
+      setError(err.message || 'Google Sign-In failed');
+    }
   };
 
   const handleAppleLogin = async () => {
@@ -153,8 +158,11 @@ export function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModa
                       className="w-full px-4 py-3 border border-black/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/20"
                       placeholder="••••••••"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
+                    {mode === 'register' && (
+                      <p className="mt-1.5 text-xs text-black/40">Must be at least 8 characters</p>
+                    )}
                   </div>
 
                   <button
@@ -180,7 +188,9 @@ export function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModa
                 <div className="space-y-3">
                   <button
                     onClick={handleGoogleLogin}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-black/20 rounded-lg hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/20"
+                    disabled={!providers.google}
+                    title={providers.google ? undefined : 'Google Sign-In is not configured yet'}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-black/20 rounded-lg hover:bg-black/5 transition-colors focus:outline-none focus:ring-2 focus:ring-black/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path
@@ -200,7 +210,7 @@ export function LoginModal({ isOpen, onClose, initialMode = 'login' }: LoginModa
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                       />
                     </svg>
-                    <span>Continue with Google</span>
+                    <span>{providers.google ? 'Continue with Google' : 'Continue with Google (not configured)'}</span>
                   </button>
 
                   <button

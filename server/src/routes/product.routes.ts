@@ -11,6 +11,11 @@ import {
   labelForCategory,
   normalizeAudience,
 } from '../services/ingestion/taxonomy.service';
+import {
+  isPythonCatalogEnabled,
+  parsePythonProductId,
+  pythonCatalogService,
+} from '../services/python-catalog.service';
 
 const router = express.Router();
 const trendDetectionService = new TrendDetectionService();
@@ -55,6 +60,15 @@ router.get('/trending', async (req: Request, res: Response) => {
     const category = req.query.category as string | undefined;
     const audience = (req.query.audience as string) || 'women';
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+    if (isPythonCatalogEnabled()) {
+      const products = await pythonCatalogService.getTrendingProducts({ category, audience, limit });
+      return res.json({
+        success: true,
+        count: products.length,
+        products,
+      });
+    }
 
     const products = await trendDetectionService.getTrendingByCategory(category, limit, audience);
 
@@ -127,6 +141,36 @@ router.get('/', async (req: Request, res: Response) => {
     const retailers = parseList(req.query.retailer);
     const colors = parseList(req.query.color);
     const sizes = parseList(req.query.size);
+
+    if (isPythonCatalogEnabled()) {
+      const result = await pythonCatalogService.listProducts({
+        q: q ? String(q).trim() : undefined,
+        category: category ? String(category) : undefined,
+        subcategory: subcategory ? String(subcategory) : undefined,
+        audience: String(audience),
+        brand: brands,
+        retailer: retailers,
+        color: colors,
+        size: sizes,
+        minPrice: minPrice ? parseFloat(String(minPrice)) : undefined,
+        maxPrice: maxPrice ? parseFloat(String(maxPrice)) : undefined,
+        inStock: inStock === 'true',
+        sort: String(sort),
+        page: Math.max(parseInt(String(page)) || 1, 1),
+        limit: Math.min(Math.max(parseInt(String(limit)) || 20, 1), 100),
+      });
+
+      return res.json({
+        success: true,
+        count: result.products.length,
+        total: result.total,
+        page: result.page,
+        totalPages: Math.ceil(result.total / result.pageSize),
+        sort: result.sort,
+        products: result.products,
+        facets: result.facets,
+      });
+    }
 
     const query: Record<string, any> = {
       audience,
@@ -201,6 +245,15 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const pythonId = isPythonCatalogEnabled() ? parsePythonProductId(req.params.id) : null;
+    if (pythonId !== null) {
+      const product = await pythonCatalogService.getProduct(pythonId);
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found' });
+      }
+      return res.json({ success: true, product });
+    }
+
     const product = await Product.findById(req.params.id).lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
@@ -252,7 +305,7 @@ router.post(
   }
 );
 
-async function formatProductResponse(product: IProduct | any) {
+export async function formatProductResponse(product: IProduct | any) {
   const approved =
     product.images?.approved?.length > 0
       ? product.images.approved

@@ -46,8 +46,12 @@ export function buildFingerprint(input: {
   name: string;
   category: string;
   color?: string;
+  audience?: string;
 }): string {
-  const raw = [input.brand, input.name, input.category, input.color || '']
+  // audience is included so that identically-named/coloured products across
+  // women/men/kids (e.g. a "Bomber Jacket" in olive sold for both men and
+  // women) are never treated as the same product during dedupe.
+  const raw = [input.brand, input.name, input.category, input.color || '', input.audience || '']
     .map((v) => v.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
     .join('|');
   return createHash('sha1').update(raw).digest('hex');
@@ -63,6 +67,7 @@ export function normalizeRawProduct(raw: RawSourceProduct, sourceId: string): No
     name,
     category,
     color: raw.color,
+    audience: raw.audience,
   });
   const dedupeKey = raw.gtin
     ? `gtin:${raw.gtin}`

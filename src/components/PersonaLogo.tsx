@@ -99,39 +99,38 @@ export function PersonaLogo() {
 
   return (
     <>
-    {/* Full-viewport scroll block — reserves space so content below starts after intro */}
-    <section
-      aria-hidden
-      className="relative h-screen w-full shrink-0 bg-white"
-    />
-    <motion.div
-      className="fixed left-1/2 top-[calc(50%-80px)] -translate-x-1/2 z-40 pointer-events-none"
-      animate={{
-        scale: isInHeader ? headerScale : heroScale,
-        y: isInHeader ? headerY : heroY,
-        x: isInHeader ? headerX : heroX,
-      }}
-      transition={{
-        duration: 0.8,
-        ease: [0.45, 0, 0.55, 1], // ease-in-out
-      }}
-      style={{
-        zIndex: isInHeader ? 51 : 30, // Higher z-index when in header (above header's z-50)
-        overflow: isInHeader ? 'visible' : 'visible', // Ensure logo is not clipped
-      }}
-    >
-      <h1
-        className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[160px] tracking-tighter leading-none select-none text-black text-center font-[Anton] whitespace-nowrap px-4"
+      {/* Full-viewport scroll block — reserves space so Monthly Trends starts after intro */}
+      <section
+        aria-hidden
+        className="relative h-screen w-full shrink-0 bg-white"
+      />
+      <motion.div
+        className="fixed left-1/2 top-[calc(50%-80px)] -translate-x-1/2 z-40 pointer-events-none"
+        animate={{
+          scale: isInHeader ? headerScale : heroScale,
+          y: isInHeader ? headerY : heroY,
+          x: isInHeader ? headerX : heroX,
+        }}
+        transition={{
+          duration: 0.8,
+          ease: [0.45, 0, 0.55, 1], // ease-in-out
+        }}
         style={{
-          textShadow: isInHeader
-            ? "0 1px 2px rgba(0,0,0,0.05)"
-            : "0 6px 40px rgba(0,0,0,0.12)",
-          opacity: isInHeader ? 0.95 : 1,
+          zIndex: isInHeader ? 51 : 30, // Higher z-index when in header (above header's z-50)
         }}
       >
-        PERSONA
-      </h1>
-    </motion.div>
+        <h1
+          className="text-5xl sm:text-6xl md:text-8xl lg:text-9xl xl:text-[160px] tracking-tighter leading-none select-none text-black text-center font-[Anton] whitespace-nowrap px-4"
+          style={{
+            textShadow: isInHeader
+              ? "0 1px 2px rgba(0,0,0,0.05)"
+              : "0 6px 40px rgba(0,0,0,0.12)",
+            opacity: isInHeader ? 0.95 : 1,
+          }}
+        >
+          PERSONA
+        </h1>
+      </motion.div>
     </>
   );
 }

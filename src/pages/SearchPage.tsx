@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { BudgetFilter } from '../components/products/BudgetFilter';
 import { ProductFilters } from '../components/products/ProductFilters';
 import { ProductGrid } from '../components/products/ProductGrid';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
@@ -7,6 +8,7 @@ import { getProducts } from '../utils/api';
 import { ProductFacets, ProductQuery, ProductSummary } from '../types/product';
 import { trackEvent } from '../utils/analytics';
 import { Audience, isAudience, labelForAudience } from '../utils/taxonomy';
+import { useBudgetPreference } from '../contexts/BudgetPreferenceContext';
 
 interface SearchPageProps {
   onRequireAuth?: () => void;
@@ -21,6 +23,8 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [tryOnProduct, setTryOnProduct] = useState<ProductSummary | null>(null);
+  const { priceRange } = useBudgetPreference();
+  const didSyncBudget = useRef(false);
 
   const audienceParam = searchParams.get('audience') || 'women';
   const audience: Audience = isAudience(audienceParam) ? audienceParam : 'women';
@@ -72,6 +76,18 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
     setSearchParams(params);
   };
 
+  // Apply the persisted budget preference on first load if the URL doesn't
+  // already carry an explicit (shareable) minPrice/maxPrice.
+  useEffect(() => {
+    if (didSyncBudget.current) return;
+    didSyncBudget.current = true;
+    const hasUrlPrice = searchParams.has('minPrice') || searchParams.has('maxPrice');
+    if (!hasUrlPrice && (priceRange.minPrice !== undefined || priceRange.maxPrice !== undefined)) {
+      updateQuery({ minPrice: priceRange.minPrice, maxPrice: priceRange.maxPrice });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-14">
       <form
@@ -110,6 +126,12 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
           ? `${total} results for “${query.q}” in ${labelForAudience(audience)}`
           : `Browse ${labelForAudience(audience).toLowerCase()} styles`}
       </p>
+
+      <div className="mb-8 pb-6 border-b border-black/10">
+        <BudgetFilter
+          onChange={({ minPrice, maxPrice }) => updateQuery({ minPrice, maxPrice, page: 1 })}
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-8">
         <ProductFilters query={query} facets={facets} onChange={updateQuery} />

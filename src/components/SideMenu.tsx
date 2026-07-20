@@ -1,14 +1,9 @@
 import { X, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
-import {
-  Audience,
-  getCategoriesForAudience,
-  labelForCategory,
-} from '../utils/taxonomy';
+import { Audience, getCategoryOptionsForAudience } from '../utils/taxonomy';
 
 type MainCategory = 'Women' | 'Men' | 'Kids' | null;
-type SubCategory = 'Accessories' | 'Shoes' | 'Bags' | 'Jewellery' | 'Clothes' | null;
 
 const moodImages = [
   'https://images.unsplash.com/photo-1719518411339-5158cea86caf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbHV4dXJ5JTIwZWRpdG9yaWFsfGVufDF8fHx8MTc2NTIxNjQ0NHww&ixlib=rb-4.1.0&q=80&w=1080',
@@ -31,55 +26,19 @@ const AUDIENCE_PATH: Record<Exclude<MainCategory, null>, string> = {
   Kids: 'kids',
 };
 
-const CATEGORY_MAP: Record<string, string> = {
-  Accessories: 'accessories',
-  Shoes: 'footwear',
-  Bags: 'bags',
-  Jewellery: 'jewellery',
-};
-
-const CLOTHING_CATEGORIES = new Set([
-  'wedding-gowns',
-  'dresses',
-  'tops',
-  'bottoms',
-  'shirts',
-  'sets',
-  'ethnic-wear',
-  'outerwear',
-  'activewear',
-  'loungewear',
-]);
-
 export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
   const [selectedMain, setSelectedMain] = useState<MainCategory>(null);
-  const [selectedSub, setSelectedSub] = useState<SubCategory>(null);
   const [imageTransition, setImageTransition] = useState(false);
 
   const audienceSlug: Audience = selectedMain ? (AUDIENCE_PATH[selectedMain] as Audience) : 'women';
-  const clothingCategories = getCategoriesForAudience(audienceSlug).filter((c) =>
-    CLOTHING_CATEGORIES.has(c)
-  );
+  // Pulled live from the shared taxonomy (kept in sync with the AI
+  // categorizer's registry), never a hardcoded/stale list.
+  const categories = getCategoryOptionsForAudience(audienceSlug);
 
   const handleMainClick = (category: MainCategory) => {
     setImageTransition(true);
     setTimeout(() => {
       setSelectedMain(category);
-      setSelectedSub(null);
-      setImageTransition(false);
-    }, 200);
-  };
-
-  const handleSubClick = (category: SubCategory) => {
-    if (selectedMain && category && category !== 'Clothes') {
-      const slug = CATEGORY_MAP[category] || category.toLowerCase();
-      onNavigate?.(`/${AUDIENCE_PATH[selectedMain]}/${slug}`);
-      onClose();
-      return;
-    }
-    setImageTransition(true);
-    setTimeout(() => {
-      setSelectedSub(category);
       setImageTransition(false);
     }, 200);
   };
@@ -87,16 +46,12 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
   const handleBack = () => {
     setImageTransition(true);
     setTimeout(() => {
-      if (selectedSub) {
-        setSelectedSub(null);
-      } else if (selectedMain) {
-        setSelectedMain(null);
-      }
+      setSelectedMain(null);
       setImageTransition(false);
     }, 200);
   };
 
-  const openClothingCategory = (slug: string) => {
+  const openCategory = (slug: string) => {
     onNavigate?.(`/${audienceSlug}/${slug}`);
     onClose();
   };
@@ -136,7 +91,7 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
 
               {/* Header */}
               <div className="px-6 sm:px-10 md:px-12 py-8 sm:py-10 border-b border-black/5 flex items-center justify-between relative">
-                {selectedMain || selectedSub ? (
+                {selectedMain ? (
                   <motion.button
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -203,73 +158,44 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
                   </div>
                 )}
 
-                {selectedMain && !selectedSub && (
-                  <div className="space-y-8">
-                    <motion.h2 
+                {selectedMain && (
+                  <div className="space-y-6">
+                    <motion.h2
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-[10px] sm:text-xs tracking-[0.3em] uppercase text-black/30 mb-8 sm:mb-12"
                     >
                       {selectedMain}
                     </motion.h2>
-                    <div className="space-y-4 sm:space-y-5">
-                      {['Clothes', 'Shoes', 'Bags', 'Jewellery', 'Accessories'].map((category, index) => (
+                    {/* Full category list is loaded live from the shared
+                        taxonomy (same registry the AI categorizer uses), so
+                        new/updated categories show up automatically. */}
+                    <div className="space-y-2">
+                      {categories.map(({ slug, label }, index) => (
                         <motion.button
-                          key={category}
-                          initial={{ opacity: 0, y: 20 }}
+                          key={slug}
+                          initial={{ opacity: 0, y: 15 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 + index * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                          onClick={() => handleSubClick(category as SubCategory)}
-                          whileHover={{ x: 4 }}
-                          className="w-full group text-left"
+                          transition={{ delay: 0.03 + index * 0.03, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                          onClick={() => openCategory(slug)}
+                          whileHover={{ x: 3 }}
+                          className="w-full group text-left py-3 sm:py-4 px-4 sm:px-6 hover:bg-black/3 transition-all"
+                          style={{ borderRadius: '0.5rem' }}
                         >
-                          <div className="flex items-center justify-between py-4 sm:py-5 border-b border-black/5">
-                            <span 
-                              className="text-xl sm:text-2xl tracking-wide"
-                              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                          <div className="flex items-center justify-between">
+                            <span
+                              className="tracking-wider text-xs sm:text-sm"
+                              style={{ fontFamily: 'Inter, sans-serif' }}
                             >
-                              {category}
+                              {label}
                             </span>
                             <motion.div
                               className="opacity-0 group-hover:opacity-100 transition-opacity"
                               whileHover={{ x: 3 }}
                             >
-                              <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={1.5} />
+                              <ChevronRight size={14} strokeWidth={1.5} />
                             </motion.div>
                           </div>
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedSub === 'Clothes' && (
-                  <div className="space-y-6">
-                    <motion.h2 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-[10px] sm:text-xs tracking-[0.3em] uppercase text-black/30 mb-8 sm:mb-12 text-left"
-                    >
-                      {selectedMain} · Clothes
-                    </motion.h2>
-                    <div className="space-y-2">
-                      {clothingCategories.map((slug, index) => (
-                        <motion.button
-                          key={slug}
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.05 + index * 0.04, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                          onClick={() => openClothingCategory(slug)}
-                          whileHover={{ x: 3 }}
-                          className="w-full py-3 sm:py-4 px-4 sm:px-6 text-left hover:bg-black/3 transition-all"
-                          style={{ borderRadius: '0.5rem' }}
-                        >
-                          <span
-                            className="tracking-wider text-xs sm:text-sm"
-                            style={{ fontFamily: 'Inter, sans-serif' }}
-                          >
-                            {labelForCategory(slug)}
-                          </span>
                         </motion.button>
                       ))}
                     </div>
@@ -291,7 +217,7 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
               {/* Image Grid with transition overlay */}
               <AnimatePresence mode="wait">
                 <motion.div 
-                  key={`${selectedMain}-${selectedSub}`}
+                  key={selectedMain}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: imageTransition ? 0.3 : 1 }}
                   exit={{ opacity: 0 }}

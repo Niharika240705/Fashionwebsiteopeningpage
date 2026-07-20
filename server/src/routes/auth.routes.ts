@@ -13,9 +13,19 @@ import {
   REFRESH_COOKIE,
   setAuthCookies,
 } from '../utils/auth-cookies';
+import { isGoogleOAuthConfigured } from '../utils/oauth-config';
 import validator from 'validator';
 
 const router = express.Router();
+
+// Lets the frontend know which OAuth providers are actually wired up, so it can
+// disable/hide buttons (e.g. Google) instead of sending the user into a dead end.
+router.get('/providers', (_req: Request, res: Response) => {
+  res.json({
+    google: isGoogleOAuthConfigured(),
+    apple: false,
+  });
+});
 
 function publicUser(user: any) {
   return {
@@ -119,12 +129,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Google OAuth routes - Only enable if configured
-if (
-  process.env.GOOGLE_CLIENT_ID &&
-  process.env.GOOGLE_CLIENT_SECRET &&
-  process.env.GOOGLE_CLIENT_ID !== 'your-google-client-id-here' &&
-  process.env.GOOGLE_CLIENT_SECRET !== 'your-google-client-secret-here'
-) {
+if (isGoogleOAuthConfigured()) {
   router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
   router.get(
