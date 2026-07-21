@@ -1,10 +1,12 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export type Audience = 'women' | 'men' | 'kids';
 
 export interface IProduct extends Document {
   name: string;
   brand: string;
+  /** Set for designer-catalog products; links back to the Designer directory entry. */
+  designerId?: Types.ObjectId;
   category: string;
   subcategory?: string;
   audience: Audience;
@@ -40,6 +42,10 @@ export interface IProduct extends Document {
     material?: string;
     description?: string;
     styleTags?: string[];
+    /** Designer-catalog only: occasion tag (Bridal, Festive, Party Wear, Ethnic, Contemporary...). */
+    occasion?: string;
+    /** Designer-catalog only: named collection/line the piece belongs to. */
+    collectionName?: string;
   };
 }
 
@@ -47,6 +53,7 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, index: true },
     brand: { type: String, required: true, index: true },
+    designerId: { type: Schema.Types.ObjectId, ref: 'Designer', index: true, sparse: true },
     category: { type: String, required: true, index: true },
     subcategory: { type: String, index: true },
     audience: {
@@ -90,11 +97,14 @@ const ProductSchema = new Schema<IProduct>(
       material: String,
       description: String,
       styleTags: [String],
+      occasion: String,
+      collectionName: String,
     },
   },
   { timestamps: true }
 );
 
+ProductSchema.index({ designerId: 1, category: 1 });
 ProductSchema.index({ category: 1, brand: 1 });
 ProductSchema.index({ audience: 1, category: 1, trendScore: -1 });
 ProductSchema.index({ trendScore: -1, createdAt: -1 });

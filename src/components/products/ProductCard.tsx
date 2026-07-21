@@ -13,6 +13,10 @@ interface ProductCardProps {
   placement?: string;
   onTryOn?: (product: ProductSummary) => void;
   onRequireAuth?: () => void;
+  /** Label for the buy/redirect button — e.g. "View Original" on designer collection pages. */
+  buyLabel?: string;
+  /** Show the product's collection name (designer collection pages) instead of just the brand. */
+  showCollection?: boolean;
 }
 
 function isTryOnEligible(product: ProductSummary): boolean {
@@ -26,6 +30,8 @@ export function ProductCard({
   placement = 'grid',
   onTryOn,
   onRequireAuth,
+  buyLabel = 'Go to retailer',
+  showCollection = false,
 }: ProductCardProps) {
   const { isSaved, toggleSave } = useSavedItems();
   const { isAuthenticated } = useAuth();
@@ -98,7 +104,9 @@ export function ProductCard({
       </Link>
 
       <div className="p-4 space-y-2">
-        <p className="text-[11px] tracking-[0.2em] uppercase text-black/50">{product.brand}</p>
+        <p className="text-[11px] tracking-[0.2em] uppercase text-black/50">
+          {showCollection && product.metadata?.collectionName ? product.metadata.collectionName : product.brand}
+        </p>
         <Link to={`/products/${product.id}`} className="block">
           <h3 className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
         </Link>
@@ -139,7 +147,7 @@ export function ProductCard({
             disabled={!canBuy}
             className="w-full inline-flex items-center justify-center gap-2 border border-black px-3 py-2 text-xs tracking-widest uppercase hover:bg-black hover:text-white disabled:opacity-40"
           >
-            Go to retailer
+            {buyLabel}
             <ExternalLink size={12} />
           </button>
         </div>

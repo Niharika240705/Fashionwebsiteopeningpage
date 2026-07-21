@@ -7,6 +7,8 @@ interface ProductGridProps {
   emptyMessage?: string;
   onTryOn?: (product: ProductSummary) => void;
   onRequireAuth?: () => void;
+  buyLabel?: string;
+  showCollection?: boolean;
 }
 
 export function ProductGrid({
@@ -15,6 +17,8 @@ export function ProductGrid({
   emptyMessage = 'No products found.',
   onTryOn,
   onRequireAuth,
+  buyLabel,
+  showCollection,
 }: ProductGridProps) {
   if (loading) {
     return (
@@ -38,6 +42,8 @@ export function ProductGrid({
           product={product}
           onTryOn={onTryOn}
           onRequireAuth={onRequireAuth}
+          buyLabel={buyLabel}
+          showCollection={showCollection}
         />
       ))}
     </div>

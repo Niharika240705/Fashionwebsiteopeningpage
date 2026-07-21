@@ -10,6 +10,7 @@ import {
   detectIntent,
   formatTierRange,
   getBudgetReply,
+  getDesignersReply,
   getFallbackReply,
   getFaqReply,
   getGreetingFollowUpReply,
@@ -211,6 +212,14 @@ export function usePersonaAI() {
 
           case 'faq':
             pushMessage({ role: 'assistant', text: getFaqReply() });
+            break;
+
+          case 'designers':
+            pushMessage({
+              role: 'assistant',
+              text: getDesignersReply(),
+              actions: [{ label: 'Browse Designers', onClick: () => goTo('/designers') }],
+            });
             break;
 
           case 'search': {

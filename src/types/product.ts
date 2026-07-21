@@ -2,6 +2,7 @@ export interface ProductSummary {
   id: string;
   name: string;
   brand: string;
+  designerId?: string;
   category: string;
   subcategory?: string;
   audience?: 'women' | 'men' | 'kids';
@@ -25,16 +26,44 @@ export interface ProductSummary {
     material?: string;
     description?: string;
     styleTags?: string[];
+    occasion?: string;
+    collectionName?: string;
   };
   lastVerifiedAt?: string;
   disclaimer?: string;
 }
 
 export interface ProductFacets {
-  brands: Array<{ value: string; count: number }>;
-  retailers: Array<{ value: string; count: number }>;
+  brands?: Array<{ value: string; count: number }>;
+  retailers?: Array<{ value: string; count: number }>;
   categories: Array<{ value: string; count: number }>;
   colors: Array<{ value: string; count: number }>;
+  occasions?: Array<{ value: string; count: number }>;
+}
+
+export interface DesignerProductQuery {
+  category?: string | string[];
+  gender?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  color?: string | string[];
+  occasion?: string | string[];
+  availability?: 'in_stock';
+  sort?: ProductQuery['sort'];
+  page?: number;
+  limit?: number;
+}
+
+export interface DesignerProductListResponse {
+  success: boolean;
+  designer: import('./designer').Designer;
+  count: number;
+  total: number;
+  page: number;
+  totalPages: number;
+  sort: string;
+  products: ProductSummary[];
+  facets: ProductFacets;
 }
 
 export interface ProductQuery {

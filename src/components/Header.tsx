@@ -1,6 +1,7 @@
 import { Search, Menu, Bookmark, Mic, Camera, X, UserCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 export function Header({ 
   onMenuClick, 
@@ -142,6 +143,13 @@ export function Header({
           >
             <Search size={18} className="sm:w-5 sm:h-5" strokeWidth={1.5} />
           </motion.button>
+
+          <Link
+            to="/designers"
+            className="hidden sm:inline text-[10px] sm:text-xs md:text-sm tracking-widest hover:opacity-60 transition-opacity"
+          >
+            DESIGNERS
+          </Link>
 
           <button 
             onClick={onUfindClick}

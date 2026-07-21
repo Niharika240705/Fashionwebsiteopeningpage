@@ -107,6 +107,7 @@ type IntentType =
   | 'navigation'
   | 'faq'
   | 'search'
+  | 'designers'
   | 'unknown';
 
 interface DetectedIntent {
@@ -131,6 +132,9 @@ const COLOR_WORDS = [
 ];
 
 const SEARCH_TRIGGER = /\b(show me|find|search|looking for|shop|buy|need|want|browse|get me)\b/i;
+
+const DESIGNER_TRIGGER =
+  /\bdesigners?\b|\bcouturiers?\b|\bcouture\b|bridal (wear|couturier)|sabyasachi|manish malhotra|tarun tahiliani|anita dongre|ritu kumar/i;
 
 const CATEGORY_LOOKUP: Array<{ audience: Audience; slug: string; label: string }> = (
   ['women', 'men', 'kids'] as Audience[]
@@ -186,6 +190,9 @@ function detectIntent(raw: string): DetectedIntent {
   if (/\bfaq\b|frequently asked|^help$|^help me\??$/.test(lower)) {
     return { type: 'faq' };
   }
+  if (DESIGNER_TRIGGER.test(lower)) {
+    return { type: 'designers' };
+  }
 
   const audience = detectAudience(lower);
   const category = detectCategory(lower);
@@ -224,8 +231,12 @@ const NAVIGATION_REPLY =
 
 const FAQ_REPLY =
   'A few quick answers: we link you to trusted retailers (checkout happens on their site); Try-On is a styling ' +
-  'preview, not a guaranteed fit; UFIND gives personalized picks from a short body-shape quiz; save items with ' +
-  'the bookmark icon to find them later.';
+  'preview, not a guaranteed fit; UFIND gives personalized picks from a short body-shape quiz; browse the ' +
+  'Designers directory for India\'s top couturiers; save items with the bookmark icon to find them later.';
+
+const DESIGNERS_REPLY =
+  "We have a full directory of India's leading designer houses — Sabyasachi, Manish Malhotra, Tarun Tahiliani, " +
+  'Anita Dongre, and more — each with a curated collection. Open "Designers" from the menu to browse.';
 
 const SEARCH_EMPTY_REPLY =
   "I couldn't find an exact match for that. Try a different keyword, or ask me about dresses, wedding gowns, or menswear.";
@@ -258,6 +269,8 @@ function buildSystemPrompt(): string {
       '₹10,000+. Custom ranges are available via the Search page filters.',
     '- UFIND: a short body-shape questionnaire (header button "UFIND") that curates a personalized feed.',
     '- Navigation: the menu icon (top-left) opens Women/Men/Kids categories pulled live from the catalog.',
+    '- Designers: a directory at /designers of India\'s leading designer houses (Sabyasachi, Manish Malhotra, ' +
+      'Tarun Tahiliani, Anita Dongre, and more), each with its own collection page at /designers/:slug.',
     '',
     'Respond ONLY with a JSON object of this exact shape:',
     '{ "reply": string, "searchQuery"?: { "q"?: string, "audience"?: "women"|"men"|"kids", "category"?: string, "color"?: string }, "navigateTo"?: string }',
@@ -350,6 +363,9 @@ export async function getAssistantResponse(
 
     case 'faq':
       return { reply: FAQ_REPLY };
+
+    case 'designers':
+      return { reply: DESIGNERS_REPLY };
 
     case 'wedding': {
       const products = await safeSearch({ audience: 'women', category: 'wedding-gowns', limit: 4 });

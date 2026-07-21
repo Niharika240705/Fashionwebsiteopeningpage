@@ -21,6 +21,8 @@ import { ProductPage } from './pages/ProductPage';
 import { SavedPage } from './pages/SavedPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
+import { DesignersPage } from './pages/DesignersPage';
+import { DesignerCollectionPage } from './pages/DesignerCollectionPage';
 import { Audience } from './utils/taxonomy';
 
 type UfindView = 'closed' | 'modal' | 'questionnaire' | 'result' | 'feed';
@@ -160,6 +162,8 @@ function AppShell() {
       {ufindView !== 'feed' && (
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/designers" element={<DesignersPage />} />
+          <Route path="/designers/:slug" element={<DesignerCollectionPage onRequireAuth={openLogin} />} />
           <Route path="/:audience/:category" element={<CategoryPage onRequireAuth={openLogin} />} />
           <Route path="/search" element={<SearchPage onRequireAuth={openLogin} />} />
           <Route path="/products/:id" element={<ProductPage onRequireAuth={openLogin} />} />

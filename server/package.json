@@ -16,6 +16,7 @@
     "scrape:myntra": "tsx src/scripts/scrape-myntra-comprehensive.ts",
     "ingest:demo": "tsx src/scripts/seed-demo-catalog.ts",
     "ingest:retailers": "tsx src/scripts/ingest-retailers.ts",
+    "seed:designers": "tsx src/scripts/seed-designers.ts",
     "sync:python": "tsx src/scripts/sync-from-python.ts"
   },
   "dependencies": {

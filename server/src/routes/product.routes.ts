@@ -332,6 +332,7 @@ export async function formatProductResponse(product: IProduct | any) {
     id: product._id,
     name: product.name,
     brand: product.brand,
+    designerId: product.designerId,
     category: product.category,
     subcategory: product.subcategory,
     audience: product.audience || 'women',

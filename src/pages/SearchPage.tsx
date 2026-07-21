@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowUpRight } from 'lucide-react';
 import { BudgetFilter } from '../components/products/BudgetFilter';
 import { ProductFilters } from '../components/products/ProductFilters';
 import { ProductGrid } from '../components/products/ProductGrid';
 import { VirtualTryOnModal } from '../components/VirtualTryOnModal';
-import { getProducts } from '../utils/api';
+import { getProducts, getDesigners } from '../utils/api';
 import { ProductFacets, ProductQuery, ProductSummary } from '../types/product';
+import { Designer } from '../types/designer';
 import { trackEvent } from '../utils/analytics';
 import { Audience, isAudience, labelForAudience } from '../utils/taxonomy';
 import { useBudgetPreference } from '../contexts/BudgetPreferenceContext';
@@ -22,6 +24,7 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
   const [facets, setFacets] = useState<ProductFacets>();
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [matchingDesigners, setMatchingDesigners] = useState<Designer[]>([]);
   const [tryOnProduct, setTryOnProduct] = useState<ProductSummary | null>(null);
   const { priceRange } = useBudgetPreference();
   const didSyncBudget = useRef(false);
@@ -61,6 +64,28 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
       cancelled = true;
     };
   }, [query, audience]);
+
+  // Designer directory results (name/specialization match) — surfaced as a
+  // strip above the product grid, linking straight into the designer's
+  // collection page. Fetched independently of the paginated product query.
+  useEffect(() => {
+    let cancelled = false;
+    const q = query.q?.trim();
+    if (!q) {
+      setMatchingDesigners([]);
+      return;
+    }
+    getDesigners({ q })
+      .then((data) => {
+        if (!cancelled) setMatchingDesigners(data.designers || []);
+      })
+      .catch(() => {
+        if (!cancelled) setMatchingDesigners([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query.q]);
 
   const updateQuery = (next: Partial<ProductQuery>) => {
     const params = new URLSearchParams(searchParams);
@@ -126,6 +151,43 @@ export function SearchPage({ onRequireAuth }: SearchPageProps) {
           ? `${total} results for “${query.q}” in ${labelForAudience(audience)}`
           : `Browse ${labelForAudience(audience).toLowerCase()} styles`}
       </p>
+
+      {matchingDesigners.length > 0 && (
+        <div className="mb-8 pb-8 border-b border-black/10">
+          <h2 className="text-[11px] tracking-[0.25em] uppercase text-black/40 mb-4">
+            Designers
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-1 -mx-1 px-1">
+            {matchingDesigners.map((designer) => (
+              <Link
+                key={designer.id}
+                to={`/designers/${designer.slug}`}
+                className="group relative shrink-0 w-48 sm:w-56 aspect-[4/5] overflow-hidden bg-neutral-100"
+              >
+                <img
+                  src={designer.coverImageUrl}
+                  alt={designer.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                  <h3
+                    className="text-lg leading-tight mb-1"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
+                    {designer.name}
+                  </h3>
+                  <span className="inline-flex items-center gap-1 text-[10px] tracking-[0.15em] uppercase text-white/80">
+                    View Collection
+                    <ArrowUpRight size={12} />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mb-8 pb-6 border-b border-black/10">
         <BudgetFilter

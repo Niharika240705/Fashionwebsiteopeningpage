@@ -19,6 +19,8 @@ export interface CategoryOption {
 const CATEGORY_LABELS: Record<Audience, string[]> = {
   women: [
     'Dresses',
+    'Bridal',
+    'Lehengas',
     'Wedding Gowns',
     'Party Wear',
     'Tops',
@@ -43,6 +45,7 @@ const CATEGORY_LABELS: Record<Audience, string[]> = {
   men: [
     'T-Shirts',
     'Shirts',
+    'Kurtas',
     'Jeans',
     'Trousers',
     'Shorts',
@@ -51,6 +54,9 @@ const CATEGORY_LABELS: Record<Audience, string[]> = {
     'Sweatshirts',
     'Blazers',
     'Suits',
+    'Sherwanis',
+    'Bandhgalas',
+    'Indo-Western',
     'Ethnic Wear',
     'Activewear',
     'Footwear',

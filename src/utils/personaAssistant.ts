@@ -18,6 +18,7 @@ export type IntentType =
   | 'navigation'
   | 'faq'
   | 'search'
+  | 'designers'
   | 'unknown';
 
 export interface DetectedIntent {
@@ -77,6 +78,9 @@ const COLOR_WORDS = [
 ];
 
 const SEARCH_TRIGGER = /\b(show me|find|search|looking for|shop|buy|need|want|browse|get me|any)\b/i;
+
+const DESIGNER_TRIGGER =
+  /\bdesigners?\b|\bcouturiers?\b|\bcouture\b|bridal (wear|couturier)|sabyasachi|manish malhotra|tarun tahiliani|anita dongre|ritu kumar/i;
 
 const CATEGORY_LOOKUP: Array<{ audience: Audience; slug: string; label: string }> = (
   ['women', 'men', 'kids'] as Audience[]
@@ -149,6 +153,10 @@ export function detectIntent(raw: string): DetectedIntent {
     return { type: 'faq' };
   }
 
+  if (DESIGNER_TRIGGER.test(lower)) {
+    return { type: 'designers' };
+  }
+
   const audience = detectAudience(lower);
   const category = detectCategory(lower);
   const color = detectColor(lower);
@@ -219,8 +227,16 @@ export function getUfindReply(): string {
 
 export function getNavigationReply(): string {
   return (
-    'Tap the menu icon (top-left) to open navigation — choose Women, Men, or Kids, then pick a category. ' +
-    'The category list is pulled live from our catalog, so it always matches what we sell.'
+    'Tap the menu icon (top-left) to open navigation — choose Women, Men, or Kids, then pick a category, ' +
+    'or tap "Designers" to browse our Indian designer directory. The category list is pulled live from our ' +
+    'catalog, so it always matches what we sell.'
+  );
+}
+
+export function getDesignersReply(): string {
+  return (
+    "We have a full directory of India's leading designer houses — Sabyasachi, Manish Malhotra, Tarun Tahiliani, " +
+    'Anita Dongre, and more — each with their own curated collection. Tap "Designers" in the menu or the button below.'
   );
 }
 
@@ -230,6 +246,7 @@ export function getFaqReply(): string {
     '• We link you to trusted retailers — checkout happens on their site.\n' +
     '• Try-On is a styling preview, not a guaranteed fit.\n' +
     '• UFIND gives personalized picks from a short body-shape quiz.\n' +
+    '• Browse the Designers directory for India\'s top couturiers and their collections.\n' +
     '• Save items with the bookmark icon to find them later.\n' +
     'Ask me anything else — I\'m happy to help.'
   );

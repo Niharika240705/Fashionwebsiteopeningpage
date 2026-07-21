@@ -1,5 +1,12 @@
-import { ProductListResponse, ProductQuery, ProductSummary } from '../types/product';
+import {
+  DesignerProductListResponse,
+  DesignerProductQuery,
+  ProductListResponse,
+  ProductQuery,
+  ProductSummary,
+} from '../types/product';
 import { AssistantChatResponse, AssistantHistoryTurn } from '../types/assistant';
+import { DesignerDetailResponse, DesignerListResponse, DesignerQuery, SearchResponse } from '../types/designer';
 
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
@@ -77,6 +84,25 @@ export async function getCategories(audience = 'women'): Promise<{
   categories: Array<{ slug: string; label: string }>;
 }> {
   return apiRequest(`/products/categories${buildQuery({ audience })}`);
+}
+
+export async function getDesigners(query: DesignerQuery = {}): Promise<DesignerListResponse> {
+  return apiRequest(`/designers${buildQuery(query as Record<string, unknown>)}`);
+}
+
+export async function getDesigner(slug: string): Promise<DesignerDetailResponse> {
+  return apiRequest(`/designers/${encodeURIComponent(slug)}`);
+}
+
+export async function getDesignerProducts(
+  slug: string,
+  query: DesignerProductQuery = {}
+): Promise<DesignerProductListResponse> {
+  return apiRequest(`/designers/${encodeURIComponent(slug)}/products${buildQuery(query as Record<string, unknown>)}`);
+}
+
+export async function searchAll(q: string, options: { audience?: string; limit?: number } = {}): Promise<SearchResponse> {
+  return apiRequest(`/search${buildQuery({ q, ...options })}`);
 }
 
 export async function getSavedProducts(): Promise<{ products: ProductSummary[] }> {

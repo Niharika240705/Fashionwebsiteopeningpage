@@ -154,6 +154,32 @@ export function SideMenu({ isOpen, onClose, onNavigate }: SideMenuProps) {
                           </div>
                         </motion.button>
                       ))}
+                      <motion.button
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15 + 3 * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        onClick={() => {
+                          onNavigate?.('/designers');
+                          onClose();
+                        }}
+                        whileHover={{ x: 4 }}
+                        className="w-full group text-left"
+                      >
+                        <div className="flex items-center justify-between py-4 sm:py-5 border-b border-black/5">
+                          <span
+                            className="text-xl sm:text-2xl tracking-wide transition-all"
+                            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                          >
+                            Designers
+                          </span>
+                          <motion.div
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            whileHover={{ x: 3 }}
+                          >
+                            <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px]" strokeWidth={1.5} />
+                          </motion.div>
+                        </div>
+                      </motion.button>
                     </div>
                   </div>
                 )}

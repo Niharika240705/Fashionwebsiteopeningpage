@@ -10,6 +10,8 @@ import passport from 'passport';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import productRoutes from './routes/product.routes';
+import designerRoutes from './routes/designer.routes';
+import searchRoutes from './routes/search.routes';
 import redirectRoutes from './routes/redirect.routes';
 import adminIngestionRoutes from './routes/admin-ingestion.routes';
 import monitoringRoutes from './routes/monitoring.routes';
@@ -144,6 +146,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/designers', designerRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/r', redirectRoutes);
 app.use('/api/try-on', tryOnRoutes);
 app.use('/api/assistant', assistantRoutes);
